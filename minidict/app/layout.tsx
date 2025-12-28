@@ -34,7 +34,7 @@ export const metadata: Metadata = {
           type: "launch_frame",
           name: "Minidict",
           url: "https://minidict.app",
-          splashImageUrl: "https://minidict.app/images/minidict-logo.png",
+          splashImageUrl: "https://minidict.app/images/minidict.png",
           splashBackgroundColor: "#0a0a14",
         },
       },
