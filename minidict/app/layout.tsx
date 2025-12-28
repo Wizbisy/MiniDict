@@ -42,9 +42,9 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/minidict.png', type: 'image/png', sizes: '32x32' },
+      { url: '/images/minidict.png', type: 'image/png', sizes: '32x32' },
     ],
-    apple: '/minidict.png',
+    apple: '/images/minidict.png',
   },
   other: {
     "wallet:safe": "true",
