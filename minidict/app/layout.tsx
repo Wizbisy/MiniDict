@@ -10,21 +10,22 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Minidict - Polymarket Relayer",
+  title: "Minidict",
   description: "Trade prediction markets with real-time data from Polymarket on Base",
-  generator: "v0.app",
+  generator: "",
   openGraph: {
-    title: "Minidict - Trade Prediction Markets",
+    title: "Minidict",
     description: "Trade prediction markets with real-time data from Polymarket",
     images: ["/images/minidict-logo.png"],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Minidict - Trade Prediction Markets",
+    title: "Minidicts",
     description: "Trade prediction markets with real-time data from Polymarket",
     images: ["/images/minidict-logo.png"],
   },
   other: {
+    'base:app_id': '69518a0e4d3a403912ed8412',
     "fc:miniapp": JSON.stringify({
       version: "next",
       imageUrl: "/images/minidict-logo.png",
