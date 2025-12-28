@@ -7,10 +7,12 @@ import { HomeTab } from "./tabs/home-tab"
 import { ProfileTab } from "./tabs/profile-tab"
 import { PositionsTab } from "./tabs/positions-tab"
 import { Header } from "./header"
+import { useModal } from "./providers/modal-provider"
 import type { TabType } from "@/lib/types"
 
 export function AppShell() {
   const [activeTab, setActiveTab] = useState<TabType>("home")
+  const { isModalOpen } = useModal()
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -22,7 +24,12 @@ export function AppShell() {
         {activeTab === "profile" && <ProfileTab />}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-black/60 backdrop-blur-xl border-t border-white/5 safe-area-inset-bottom z-50">
+      <nav
+        className={cn(
+          "fixed bottom-0 left-0 right-0 bg-black/60 backdrop-blur-xl border-t border-white/5 safe-area-inset-bottom z-40 transition-transform duration-300",
+          isModalOpen && "translate-y-full",
+        )}
+      >
         <div className="flex justify-around items-center h-16 max-w-md mx-auto px-4">
           <button
             onClick={() => setActiveTab("home")}
