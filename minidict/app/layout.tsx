@@ -27,15 +27,15 @@ export const metadata: Metadata = {
   other: {
     'base:app_id': '69518a0e4d3a403912ed8412',
     "fc:miniapp": JSON.stringify({
-      version: "next",
-      imageUrl: "/images/minidict-logo.png",
+      version: "1",
+      imageUrl: "https:minidict.app/images/minidict-logo.png",
       button: {
         title: "Trade Markets",
         action: {
           type: "launch_miniapp",
           name: "Minidict",
-          url: "https://minidict.vercel.app",
-          splashImageUrl: "/images/minidict-logo.png",
+          url: "https://minidict.app",
+          splashImageUrl: "https:minidict.app/images/minidict.png",
           splashBackgroundColor: "#0a0a14",
         },
       },
