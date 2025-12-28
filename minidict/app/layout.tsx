@@ -57,6 +57,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <meta name="wallet:safe" content="true" />
+        <meta name="transaction:verification" content="enabled" />
+      </head>
       <body className="font-sans antialiased overflow-x-hidden">
         <ModalProvider>
           <MiniAppProvider>{children}</MiniAppProvider>
