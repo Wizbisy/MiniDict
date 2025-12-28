@@ -23,6 +23,13 @@ export const metadata: Metadata = {
     description: "Trade prediction markets with real-time data from Polymarket",
     images: ["https://minidict.app/images/minidict-logo.png"],
   },
+
+  icons: {
+      icon: [
+        { url: '/favicon.svg', type: 'image/svg+xml' },
+        { url: '/minidict.png', type: 'image/png', sizes: '32x32' },
+      ],
+    },
   other: {
     "base:app_id": "69518a0e4d3a403912ed8412",
     "fc:frame": JSON.stringify({
