@@ -3,23 +3,24 @@ import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { MiniAppProvider } from "@/components/providers/miniapp-provider"
+import { ModalProvider } from "@/components/providers/modal-provider"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Minidict",
+  title: "Minidict - Polymarket Relayer",
   description: "Trade prediction markets with real-time data from Polymarket on Base",
-  generator: "Next.js",
+  generator: "v0.app",
   openGraph: {
-    title: "Minidict",
+    title: "Minidict - Trade Prediction Markets",
     description: "Trade prediction markets with real-time data from Polymarket",
     images: ["/images/minidict-logo.png"],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Minidict",
+    title: "Minidict - Trade Prediction Markets",
     description: "Trade prediction markets with real-time data from Polymarket",
     images: ["/images/minidict-logo.png"],
   },
@@ -57,7 +58,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="font-sans antialiased overflow-x-hidden">
-        <MiniAppProvider>{children}</MiniAppProvider>
+        <ModalProvider>
+          <MiniAppProvider>{children}</MiniAppProvider>
+        </ModalProvider>
         <Analytics />
       </body>
     </html>
