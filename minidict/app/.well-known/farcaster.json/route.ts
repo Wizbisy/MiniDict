@@ -30,5 +30,8 @@ export async function GET() {
       ogImageUrl: "https://minidict.app/images/minidict-logo.png",
       noindex: false,
     },
+    baseBuilder: {
+      allowedAddresses: ["0x62a0D21d5741bEB7bf346cfFbDB6f852245711A7"]
+    },
   })
 }
