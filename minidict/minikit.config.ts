@@ -22,7 +22,7 @@ export const minikitConfig = {
     primaryCategory: "finance",
     tags: ["polymarket", "prediction-markets", "trading", "defi", "base"],
     heroImageUrl: LOGO,
-    tagline: "Trade markets on Base",
+    tagline: "Trade Prediction markets on Base",
     ogTitle: "Minidict - Polymarket on Base",
     ogDescription: "Trade prediction markets with real-time data from Polymarket",
     ogImageUrl: LOGO,
