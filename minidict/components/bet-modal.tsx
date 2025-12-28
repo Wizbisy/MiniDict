@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { X, AlertCircle, Wallet, Loader2, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useMiniApp } from "./providers/miniapp-provider"
+import { useModal } from "./providers/modal-provider"
 import { formatPercentage } from "@/lib/polymarket"
 import type { Market } from "@/lib/types"
 
@@ -20,6 +21,7 @@ interface BetModalProps {
 
 export function BetModal({ market, outcome, onClose }: BetModalProps) {
   const { isConnected, balance, connect, address } = useMiniApp()
+  const { setModalOpen } = useModal()
   const [amount, setAmount] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [orderResult, setOrderResult] = useState<{
@@ -28,6 +30,11 @@ export function BetModal({ market, outcome, onClose }: BetModalProps) {
     error?: string
     code?: string
   } | null>(null)
+
+  useEffect(() => {
+    setModalOpen(true)
+    return () => setModalOpen(false)
+  }, [setModalOpen])
 
   const amountNum = Number.parseFloat(amount) || 0
   const potentialPayout = amountNum / outcome.price
