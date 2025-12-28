@@ -15,11 +15,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Minidict - powerd by polymarket",
+  title: "Minidict - Powerd by Polymarket",
   description: "Trade prediction markets with real-time data from Polymarket on Base",
   generator: "Minidict",
   openGraph: {
-    title: "Minidict - powered by polymarket",
+    title: "Minidict - Powered by Polymarket",
     description: "Trade prediction markets with real-time data from Polymarket",
     url: "https://minidict.app",
     siteName: "Minidict",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: '@minidict',
     creator: '@minidict',
-    title: "Minidict - powered by polymarket",
+    title: "Minidict - Powered by Polymarket",
     description: "Trade prediction markets with real-time data from Polymarket",
     images: ["https://minidict.app/images/minidict-logo.png"],
   },
