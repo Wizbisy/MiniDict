@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server"
 
 export async function GET() {
-  const URL = process.env.NEXT_PUBLIC_URL || "https://minidict.vercel.app"
+  const URL = process.env.NEXT_PUBLIC_URL || "https://minidict.app"
   const LOGO_IMAGE = `${URL}/images/minidict-logo.png`
 
   return NextResponse.json({
-    accountAssociation: {
-      header: "",
-      payload: "",
-      signature: "",
+    "accountAssociation": {
+    "header": "eyJmaWQiOjEwNDExMzIsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg5ODQyN2Q1M0MwYjA2MDk1OGQ0MWRhYTI1ZTI0MTcyOGE4ZTMwOWFkIn0",
+    "payload": "eyJkb21haW4iOiJtaW5pZGljdC5hcHAifQ",
+    "signature": "Nvy2a6cY8VHVXQu2OEMnRm6WhSimOKO36+VysaEbQxZmlYV2BztYNQPM3ZrpBzNO8RuoKUbnhn6a9yZRFzQ/cBw="
     },
     miniapp: {
       version: "1",
