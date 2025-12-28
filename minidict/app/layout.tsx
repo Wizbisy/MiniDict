@@ -5,37 +5,41 @@ import { MiniAppProvider } from "@/components/providers/miniapp-provider";
 import { ModalProvider } from "@/components/providers/modal-provider";
 import "./globals.css";
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist-sans",
+});
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+});
 
 export const metadata: Metadata = {
-  title: "Minidict",
+  title: "Minidict - powerd by polymarket",
   description: "Trade prediction markets with real-time data from Polymarket on Base",
   generator: "Minidict",
   openGraph: {
-    title: "Minidict",
+    title: "Minidict - powered by polymarket",
     description: "Trade prediction markets with real-time data from Polymarket",
     url: "https://minidict.app",
     siteName: "Minidict",
-      images: [{
-        url: "https://minidict.app/images/minidict-logo.png",
-        width: 1200,
-        height: 630,
-        type: 'image/png',
-      }],
-      locale: 'en_US',
-      type: 'website',
-    
+    images: [{
+      url: "https://minidict.app/images/minidict-logo.png",
+      width: 1200,
+      height: 630,
+      type: 'image/png',
+    }],
+    locale: 'en_US',
+    type: 'website',
   },
   twitter: {
     card: "summary_large_image",
     site: '@minidict',
     creator: '@minidict',
-    title: "Minidict", 
+    title: "Minidict - powered by polymarket",
     description: "Trade prediction markets with real-time data from Polymarket",
     images: ["https://minidict.app/images/minidict-logo.png"],
   },
-
   icons: {
     icon: [
       { url: '/minidict.png', type: 'image/png', sizes: '32x32' },
@@ -43,10 +47,12 @@ export const metadata: Metadata = {
     apple: '/minidict.png',
   },
   other: {
+    "wallet:safe": "true",
+    "transaction:verification": "enabled",
     "base:app_id": "69518a0e4d3a403912ed8412",
     "fc:frame": JSON.stringify({
-      version: "next", 
-      imageUrl: "https://minidict.app/images/minidict-logo.png", 
+      version: "next",
+      imageUrl: "https://minidict.app/images/minidict-logo.png",
       button: {
         title: "Trade Markets",
         action: {
@@ -76,11 +82,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <head>
-        <meta name="wallet:safe" content="true" />
-        <meta name="transaction:verification" content="enabled" />
-      </head>
-      <body className="font-sans antialiased overflow-x-hidden">
+      {/* 4. Injected font variables into the body so 'font-sans' works */}
+      <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased overflow-x-hidden`}>
         <ModalProvider>
           <MiniAppProvider>{children}</MiniAppProvider>
         </ModalProvider>
