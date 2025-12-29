@@ -64,6 +64,10 @@ interface MiniAppProviderProps {
 
 const BASE_CHAIN_ID = 8453
 
+let farcasterProvider: {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
+} | null = null
+
 export function MiniAppProvider({ children }: MiniAppProviderProps) {
   const [farcasterUser, setFarcasterUser] = useState<FarcasterUser | null>(null)
   const [isFarcasterContext, setIsFarcasterContext] = useState(false)
@@ -101,7 +105,6 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
       clearTimeout(timeoutId)
 
       const data = await res.json()
-      console.log("Basename API response:", JSON.stringify(data))
 
       setWalletState((prev) => ({
         ...prev,
@@ -172,6 +175,77 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
     }
   }, [walletState.address, walletState.isConnected, refreshBalances, refreshPortfolio, fetchBasename])
 
+  const connectWithFarcaster = useCallback(async () => {
+    if (!farcasterProvider) return false
+
+    try {
+      setWalletState((prev) => ({ ...prev, isConnecting: true }))
+
+      const accounts = (await farcasterProvider.request({
+        method: "eth_requestAccounts",
+      })) as string[]
+
+      if (accounts && accounts.length > 0) {
+        setWalletState((prev) => ({
+          ...prev,
+          address: accounts[0],
+          chainId: BASE_CHAIN_ID,
+          isConnecting: false,
+          isConnected: true,
+        }))
+        return true
+      }
+    } catch (error) {
+      console.error("Failed to connect with Farcaster:", error)
+    }
+
+    setWalletState((prev) => ({ ...prev, isConnecting: false }))
+    return false
+  }, [])
+
+  const autoConnectBrowserWallet = useCallback(async () => {
+    if (typeof window === "undefined" || !window.ethereum) return false
+
+    try {
+      // Check if already connected (don't prompt, just check existing accounts)
+      const accounts = (await window.ethereum.request({
+        method: "eth_accounts", // This doesn't prompt, just returns connected accounts
+      })) as string[]
+
+      if (accounts && accounts.length > 0) {
+        const chainId = (await window.ethereum.request({
+          method: "eth_chainId",
+        })) as string
+
+        const currentChainId = Number.parseInt(chainId, 16)
+
+        setWalletState((prev) => ({
+          ...prev,
+          address: accounts[0],
+          chainId: currentChainId,
+          isConnected: true,
+        }))
+
+        // Auto switch to Base if not on Base
+        if (currentChainId !== BASE_CHAIN_ID) {
+          try {
+            await window.ethereum.request({
+              method: "wallet_switchEthereumChain",
+              params: [{ chainId: `0x${BASE_CHAIN_ID.toString(16)}` }],
+            })
+            setWalletState((prev) => ({ ...prev, chainId: BASE_CHAIN_ID }))
+          } catch {
+            // Ignore switch errors on auto-connect
+          }
+        }
+        return true
+      }
+    } catch (error) {
+      console.error("Auto-connect check failed:", error)
+    }
+    return false
+  }, [])
+
   useEffect(() => {
     const initFarcaster = async () => {
       try {
@@ -189,24 +263,88 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
             })
             setIsFarcasterContext(true)
 
-            const userWithCustody = context.user as { custody?: string }
-            if (userWithCustody.custody) {
-              setWalletState((prev) => ({
-                ...prev,
-                address: userWithCustody.custody || null,
-                chainId: BASE_CHAIN_ID,
-                isConnected: true,
-              }))
+            try {
+              const provider = await sdk.wallet.getEthereumProvider()
+              if (provider) {
+                farcasterProvider = provider as typeof farcasterProvider
+
+                const accounts = (await provider.request({
+                  method: "eth_requestAccounts",
+                })) as string[]
+
+                if (accounts && accounts.length > 0) {
+                  setWalletState((prev) => ({
+                    ...prev,
+                    address: accounts[0],
+                    chainId: BASE_CHAIN_ID,
+                    isConnected: true,
+                  }))
+                }
+              }
+            } catch (walletError) {
+              console.error("Failed to get Farcaster wallet:", walletError)
+              const userWithCustody = context.user as { custody?: string }
+              if (userWithCustody.custody) {
+                setWalletState((prev) => ({
+                  ...prev,
+                  address: userWithCustody.custody || null,
+                  chainId: BASE_CHAIN_ID,
+                  isConnected: true,
+                }))
+              }
             }
+
+            try {
+              await sdk.actions.ready()
+              setIsFrameReady(true)
+            } catch {
+              setIsFrameReady(true)
+            }
+            return // Exit early if Farcaster context found
           }
         }
       } catch {
         setIsFarcasterContext(false)
       }
+
+      await autoConnectBrowserWallet()
     }
 
     initFarcaster()
-  }, [])
+
+    if (typeof window !== "undefined" && window.ethereum) {
+      const handleAccountsChanged = (accounts: unknown) => {
+        const accts = accounts as string[]
+        if (accts.length === 0) {
+          // Disconnected
+          setWalletState((prev) => ({
+            ...prev,
+            address: null,
+            isConnected: false,
+          }))
+        } else {
+          setWalletState((prev) => ({
+            ...prev,
+            address: accts[0],
+            isConnected: true,
+          }))
+        }
+      }
+
+      const handleChainChanged = (chainId: unknown) => {
+        const id = Number.parseInt(chainId as string, 16)
+        setWalletState((prev) => ({ ...prev, chainId: id }))
+      }
+
+      window.ethereum.on("accountsChanged", handleAccountsChanged)
+      window.ethereum.on("chainChanged", handleChainChanged)
+
+      return () => {
+        window.ethereum?.removeListener("accountsChanged", handleAccountsChanged)
+        window.ethereum?.removeListener("chainChanged", handleChainChanged)
+      }
+    }
+  }, [autoConnectBrowserWallet])
 
   const setFrameReadyAction = useCallback(async () => {
     if (isFrameReady) return
@@ -247,6 +385,13 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
   }, [])
 
   const connect = useCallback(async () => {
+    // Try Farcaster provider first if in Farcaster context
+    if (isFarcasterContext && farcasterProvider) {
+      const success = await connectWithFarcaster()
+      if (success) return
+    }
+
+    // Fallback to browser wallet
     if (typeof window === "undefined" || !window.ethereum) {
       alert("Please install a Web3 wallet like MetaMask or Coinbase Wallet")
       return
@@ -300,7 +445,7 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
       console.error("Failed to connect wallet:", error)
       setWalletState((prev) => ({ ...prev, isConnecting: false }))
     }
-  }, [])
+  }, [isFarcasterContext, connectWithFarcaster])
 
   const disconnect = useCallback(() => {
     setWalletState({
@@ -316,10 +461,11 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
   }, [])
 
   const switchChain = useCallback(async (chainId: number) => {
-    if (typeof window === "undefined" || !window.ethereum) return
+    const provider = farcasterProvider || window.ethereum
+    if (!provider) return
 
     try {
-      await window.ethereum.request({
+      await provider.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: `0x${chainId.toString(16)}` }],
       })
