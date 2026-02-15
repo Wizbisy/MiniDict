@@ -47,6 +47,8 @@ export const metadata: Metadata = {
     apple: '/images/minidict.png',
   },
   other: {
+    "google-adsense-account": "ca-pub-3470373531804574",
+    
     "wallet:safe": "true",
     "transaction:verification": "enabled",
     "base:app_id": "69518a0e4d3a403912ed8412",
@@ -82,7 +84,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      {/* 4. Injected font variables into the body so 'font-sans' works */}
+      {/* Injected font variables into the body so 'font-sans' works */}
       <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased overflow-x-hidden`}>
         <ModalProvider>
           <MiniAppProvider>{children}</MiniAppProvider>
