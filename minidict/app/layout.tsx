@@ -47,8 +47,6 @@ export const metadata: Metadata = {
     apple: '/images/minidict.png',
   },
   other: {
-    "google-adsense-account": "ca-pub-3470373531804574",
-    
     "wallet:safe": "true",
     "transaction:verification": "enabled",
     "base:app_id": "69518a0e4d3a403912ed8412",
