@@ -106,15 +106,13 @@ export function ProfileTab() {
     }
   }
 
-  // Function to get the best available profile picture
   const getProfilePicture = () => {
     console.log(
-      "[v0] Getting profile picture - basenameAvatar:",
+      "Getting profile picture - basenameAvatar:",
       basenameAvatar,
       "farcasterPfp:",
       farcasterUser?.pfpUrl,
     )
-    // Priority: basename avatar > farcaster pfp > null
     if (basenameAvatar) return basenameAvatar
     if (farcasterUser?.pfpUrl) return farcasterUser.pfpUrl
     return null

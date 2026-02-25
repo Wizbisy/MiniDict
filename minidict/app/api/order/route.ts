@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     try {
       builderHeaders = generateBuilderHeaders(method, path, orderBody)
     } catch (error) {
-      console.error("[v0] Builder credentials error:", error)
+      console.error("Builder credentials error:", error)
       return NextResponse.json(
         {
           error:
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       )
     }
 
-    console.log("[v0] Sending order to CLOB:", {
+    console.log("Sending order to CLOB:", {
       host: CLOB_HOST,
       order,
       userAddress,
@@ -54,12 +54,12 @@ export async function POST(request: Request) {
       body: orderBody,
     })
 
-    console.log("[v0] CLOB response status:", response.status)
+    console.log("CLOB response status:", response.status)
 
     const contentType = response.headers.get("content-type") || ""
     if (!contentType.includes("application/json")) {
       const text = await response.text()
-      console.error(`[v0] CLOB error - status ${response.status}:`, text.slice(0, 500))
+      console.error(`CLOB error - status ${response.status}:`, text.slice(0, 500))
 
       // If blocked by Cloudflare
       if (response.status === 403) {
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     }
 
     const data = await response.json()
-    console.log("[v0] CLOB response data:", data)
+    console.log("CLOB response data:", data)
 
     if (!response.ok) {
       return NextResponse.json(
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       ...data,
     })
   } catch (error) {
-    console.error("[v0] Order API error:", error)
+    console.error("Order API error:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Internal server error" },
       { status: 500 },

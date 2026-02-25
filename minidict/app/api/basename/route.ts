@@ -117,7 +117,7 @@ export async function GET(request: Request) {
       avatar: generateAvatarFromAddress(address),
     })
   } catch (error) {
-    console.error("[v0] Basename lookup error:", error)
+    console.error("Basename lookup error:", error)
     return NextResponse.json({
       basename: null,
       avatar: generateAvatarFromAddress(address),

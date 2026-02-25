@@ -97,7 +97,7 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
   const fetchBasename = useCallback(async (address: string) => {
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000)
+      const timeoutId = setTimeout(() => controller.abort(), 500000)
 
       const res = await fetch(`/api/basename?address=${address}`, {
         signal: controller.signal,
