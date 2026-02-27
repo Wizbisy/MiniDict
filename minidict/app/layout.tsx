@@ -47,6 +47,7 @@ export const metadata: Metadata = {
     apple: '/images/minidict.png',
   },
   other: {
+    "talentapp:project_verification": "5bb129b4ad6edd6b660e87d7d9b0e94fe3e0a3557d29283a8bf3dc49eb8f8dae8aa89920f9705276594579a997b5323448a6ef46b474cd07a9bda963f075ccb3",
     "wallet:safe": "true",
     "transaction:verification": "enabled",
     "base:app_id": "69518a0e4d3a403912ed8412",
