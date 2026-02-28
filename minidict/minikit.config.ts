@@ -1,4 +1,4 @@
-const URL = process.env.NEXT_PUBLIC_URL || "https://minidict.app";
+const URL = process.env.PUBLIC_URL;
 const ICON = `${URL}/images/minidict.png`;
 const LOGO = `${URL}/images/minidict-logo.png`;
 
@@ -16,15 +16,15 @@ export const minikitConfig = {
     splashImageUrl: ICON,
     splashBackgroundColor: "#0a0a14",
     webhookUrl: `${URL}/api/webhook`,
-    subtitle: "Trade prediction markets",
-    description: "Trade prediction markets on Polymarket with real-time data. Built for Base and Farcaster.",
+    subtitle: "Social prediction markets",
+    description: "Predict post engagement on Farcaster. Bet on likes, recasts, and replies with USDC on Base.",
     screenshotUrls: [],
-    primaryCategory: "finance",
-    tags: ["polymarket", "prediction-markets", "trading", "defi", "base"],
+    primaryCategory: "social",
+    tags: ["prediction-markets", "social", "engagement", "farcaster", "base"],
     heroImageUrl: LOGO,
-    tagline: "Trade Prediction markets on Base",
-    ogTitle: "Minidict - Polymarket on Base",
-    ogDescription: "Trade prediction markets with real-time data from Polymarket",
+    tagline: "Predict social engagement on Base",
+    ogTitle: "Minidict - Social Prediction Markets",
+    ogDescription: "Predict post engagement on Farcaster. Bet with USDC on Base.",
     ogImageUrl: LOGO,
     noindex: false,
   },

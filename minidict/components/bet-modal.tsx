@@ -1,35 +1,30 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, AlertCircle, Wallet, Loader2, CheckCircle2 } from "lucide-react"
+import { X, AlertCircle, Wallet, Loader2, CheckCircle2, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useMiniApp } from "./providers/miniapp-provider"
 import { useModal } from "./providers/modal-provider"
-import { formatPercentage } from "@/lib/polymarket"
-import type { Market } from "@/lib/types"
+import { computeOdds, formatUSDC, formatMetricType } from "@/lib/types"
+import { buildApproveUSDCTx, buildPlaceBetTx, checkAllowance } from "@/lib/contracts"
+import type { EngagementMarket } from "@/lib/types"
 
 interface BetModalProps {
-  market: Market
-  outcome: {
-    name: string
-    price: number
-    index: number
-  }
+  market: EngagementMarket
+  prediction: boolean
   onClose: () => void
 }
 
-export function BetModal({ market, outcome, onClose }: BetModalProps) {
-  const { isConnected, balance, connect, address } = useMiniApp()
+type Step = "input" | "approving" | "betting" | "success" | "error"
+
+export function BetModal({ market, prediction, onClose }: BetModalProps) {
+  const { isConnected, balance, connect, address, sendTransaction } = useMiniApp()
   const { setModalOpen } = useModal()
   const [amount, setAmount] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [orderResult, setOrderResult] = useState<{
-    success: boolean
-    orderId?: string
-    error?: string
-    code?: string
-  } | null>(null)
+  const [step, setStep] = useState<Step>("input")
+  const [errorMsg, setErrorMsg] = useState("")
+  const [txHash, setTxHash] = useState("")
 
   useEffect(() => {
     setModalOpen(true)
@@ -37,75 +32,82 @@ export function BetModal({ market, outcome, onClose }: BetModalProps) {
   }, [setModalOpen])
 
   const amountNum = Number.parseFloat(amount) || 0
-  const potentialPayout = amountNum / outcome.price
+  const { yesPrice, noPrice } = computeOdds(market.totalYesAmount, market.totalNoAmount)
+  const selectedPrice = prediction ? yesPrice : noPrice
+  const potentialPayout = selectedPrice > 0 ? amountNum / selectedPrice : 0
   const potentialProfit = potentialPayout - amountNum
-  const minBet = 2
+  const minBet = 1
 
   const handleSubmit = async () => {
     if (amountNum < minBet) {
-      setOrderResult({ success: false, error: `Minimum bet is $${minBet}` })
+      setErrorMsg(`Minimum bet is $${minBet}`)
+      setStep("error")
       return
     }
 
     if (amountNum > balance.usdc) {
-      setOrderResult({ success: false, error: "Insufficient USDC balance" })
+      setErrorMsg("Insufficient USDC balance")
+      setStep("error")
       return
     }
 
-    setIsSubmitting(true)
-    setOrderResult(null)
+    if (!address) return
 
     try {
-      const response = await fetch("/api/order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          order: {
-            tokenId: market.clobTokenIds?.[outcome.index] || market.id,
-            price: outcome.price,
-            size: amountNum,
-            side: "BUY",
-            funderAddress: address,
-          },
-          userAddress: address,
-          userTimestamp: Date.now(),
-        }),
-      })
+      const currentAllowance = await checkAllowance(address)
+      if (currentAllowance < amountNum) {
+        setStep("approving")
+        const approveTx = buildApproveUSDCTx(amountNum)
+        const approveResult = await sendTransaction(approveTx.to, approveTx.data, "0x0")
+        if (!approveResult.success) {
+          setErrorMsg(approveResult.error || "USDC approval failed")
+          setStep("error")
+          return
+        }
+        await new Promise((r) => setTimeout(r, 3000))
+      }
 
-      const data = await response.json()
+      setStep("betting")
+      const betTx = buildPlaceBetTx(market.id, prediction, amountNum)
+      const betResult = await sendTransaction(betTx.to, betTx.data, "0x0")
 
-      if (data.success) {
-        setOrderResult({
-          success: true,
-          orderId: data.orderId,
-        })
+      if (betResult.success) {
+        setTxHash(betResult.txHash || "")
+        setStep("success")
       } else {
-        setOrderResult({
-          success: false,
-          error: data.error,
-          code: data.code,
-        })
+        setErrorMsg(betResult.error || "Bet placement failed")
+        setStep("error")
       }
     } catch (error) {
-      console.error("Order error:", error)
-      setOrderResult({ success: false, error: "Failed to place order. Please try again." })
-    } finally {
-      setIsSubmitting(false)
+      console.error("Bet error:", error)
+      setErrorMsg(error instanceof Error ? error.message : "Transaction failed")
+      setStep("error")
     }
   }
 
-  if (orderResult?.success) {
+  if (step === "success") {
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/80 backdrop-blur-sm">
         <div className="w-full max-w-lg bg-card border-t border-border rounded-t-2xl p-6 animate-in slide-in-from-bottom duration-300">
           <div className="text-center py-8">
             <CheckCircle2 className="h-16 w-16 text-primary mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-foreground mb-2">Order Placed</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-2">Bet Placed!</h2>
             <p className="text-muted-foreground mb-2">
-              Your bet of ${amountNum} on "{outcome.name}" was successfully placed.
+              Your ${amountNum} bet on <span className={prediction ? "text-primary font-semibold" : "text-destructive font-semibold"}>
+                {prediction ? "YES" : "NO"}
+              </span> was successfully placed.
             </p>
-            <p className="text-xs text-muted-foreground font-mono mb-6">Order ID: {orderResult.orderId}</p>
-            <Button onClick={onClose} className="w-full">
+            {txHash && (
+              <a
+                href={`https://basescan.org/tx/${txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-400 hover:text-blue-300 underline"
+              >
+                View on Basescan →
+              </a>
+            )}
+            <Button onClick={onClose} className="w-full mt-6">
               Done
             </Button>
           </div>
@@ -127,10 +129,16 @@ export function BetModal({ market, outcome, onClose }: BetModalProps) {
 
         {/* Market Info */}
         <div className="bg-secondary rounded-lg p-4 mb-6">
-          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{market.question}</p>
+          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+            {market.castText || `Cast ${market.castHash.slice(0, 10)}...`}
+          </p>
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-foreground">{outcome.name}</span>
-            <span className="font-bold text-primary">{formatPercentage(outcome.price)}</span>
+            <span className="text-sm text-muted-foreground">
+              {market.targetValue}+ {formatMetricType(market.metricType).toLowerCase()}
+            </span>
+            <span className={`font-bold text-sm ${prediction ? "text-primary" : "text-destructive"}`}>
+              {prediction ? "YES" : "NO"} @ {(selectedPrice * 100).toFixed(0)}¢
+            </span>
           </div>
         </div>
 
@@ -146,6 +154,23 @@ export function BetModal({ market, outcome, onClose }: BetModalProps) {
               Connect Wallet
             </Button>
           </div>
+        ) : step === "approving" || step === "betting" ? (
+          <div className="text-center py-8">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+            <p className="font-medium text-foreground mb-1">
+              {step === "approving" ? "Approving USDC..." : "Placing bet..."}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {step === "approving"
+                ? "Confirm the approval in your wallet"
+                : "Confirm the transaction in your wallet"}
+            </p>
+            <div className="flex items-center justify-center gap-2 mt-4 text-xs text-muted-foreground">
+              <span className={step === "approving" ? "text-primary font-medium" : ""}>Approve</span>
+              <ArrowRight className="h-3 w-3" />
+              <span className={step === "betting" ? "text-primary font-medium" : ""}>Bet</span>
+            </div>
+          </div>
         ) : (
           <>
             {/* Amount Input */}
@@ -156,7 +181,11 @@ export function BetModal({ market, outcome, onClose }: BetModalProps) {
                 <Input
                   type="number"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => {
+                    setAmount(e.target.value)
+                    setStep("input")
+                    setErrorMsg("")
+                  }}
                   placeholder="0.00"
                   className="pl-7 text-lg"
                   min={minBet}
@@ -165,15 +194,15 @@ export function BetModal({ market, outcome, onClose }: BetModalProps) {
               </div>
               <div className="flex justify-between mt-2 text-xs text-muted-foreground">
                 <span>Min: ${minBet}</span>
-                <span>Balance: ${balance.usdc.toFixed(2)} USDC</span>
+                <span>Balance: {formatUSDC(balance.usdc)}</span>
               </div>
 
               {/* Quick Amount Buttons */}
               <div className="flex gap-2 mt-3">
-                {[10, 25, 50, 100].map((val) => (
+                {[5, 10, 25, 50].map((val) => (
                   <button
                     key={val}
-                    onClick={() => setAmount(val.toString())}
+                    onClick={() => { setAmount(val.toString()); setStep("input"); setErrorMsg("") }}
                     className="flex-1 py-2 text-sm bg-secondary rounded-lg hover:bg-secondary/80 transition-colors text-foreground"
                   >
                     ${val}
@@ -183,57 +212,35 @@ export function BetModal({ market, outcome, onClose }: BetModalProps) {
             </div>
 
             {/* Payout Info */}
-            {amountNum > 0 && (
+            {amountNum > 0 && step === "input" && (
               <div className="bg-secondary rounded-lg p-4 mb-6 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Potential Payout</span>
-                  <span className="font-semibold text-foreground">${potentialPayout.toFixed(2)}</span>
+                  <span className="font-semibold text-foreground">{formatUSDC(potentialPayout)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Potential Profit</span>
-                  <span className="font-semibold text-primary">+${potentialProfit.toFixed(2)}</span>
+                  <span className="font-semibold text-primary">+{formatUSDC(potentialProfit)}</span>
                 </div>
               </div>
             )}
 
             {/* Error Display */}
-            {orderResult?.error && (
+            {step === "error" && errorMsg && (
               <div className="flex items-start gap-2 text-destructive mb-4 text-sm bg-destructive/10 rounded-lg p-3">
                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                <div>
-                  <span>{orderResult.error}</span>
-                  {orderResult.code === "MISSING_CREDENTIALS" && (
-                    <p className="text-xs mt-1 opacity-80">
-                      Required: POLY_BUILDER_API_KEY, POLY_BUILDER_SECRET, POLY_BUILDER_PASSPHRASE
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Warning */}
-            {amountNum > 0 && amountNum < minBet && !orderResult?.error && (
-              <div className="flex items-center gap-2 text-amber-500 mb-4 text-sm">
-                <AlertCircle className="h-4 w-4" />
-                <span>Minimum bet is ${minBet}</span>
+                <span>{errorMsg}</span>
               </div>
             )}
 
             {/* Submit Button */}
             <Button
               onClick={handleSubmit}
-              disabled={amountNum < minBet || amountNum > balance.usdc || isSubmitting}
+              disabled={amountNum < minBet || amountNum > balance.usdc}
               className="w-full"
               size="lg"
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Placing Order...
-                </>
-              ) : (
-                `Bet $${amountNum || 0} on ${outcome.name}`
-              )}
+              {`Bet ${formatUSDC(amountNum)} on ${prediction ? "YES" : "NO"}`}
             </Button>
           </>
         )}

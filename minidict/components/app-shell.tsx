@@ -1,84 +1,100 @@
 "use client"
 
 import { useState } from "react"
-import { Home, User, BarChart3 } from "lucide-react"
+import { Home, User, Trophy } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { HomeTab } from "./tabs/home-tab"
 import { ProfileTab } from "./tabs/profile-tab"
-import { PositionsTab } from "./tabs/positions-tab"
+import { BetsTab } from "./tabs/positions-tab"
 import { Header } from "./header"
 import { useModal } from "./providers/modal-provider"
+import { useMiniApp } from "./providers/miniapp-provider"
 import type { TabType } from "@/lib/types"
 
 export function AppShell() {
   const [activeTab, setActiveTab] = useState<TabType>("home")
   const { isModalOpen } = useModal()
+  const { farcasterUser, basenameAvatar, address } = useMiniApp()
+
+  const profilePicture = basenameAvatar || farcasterUser?.pfpUrl || null
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header />
+      <Header activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      <main className="flex-1 pb-20 pt-14">
+      <main className="flex-1 pb-20 md:pb-6 pt-14">
         {activeTab === "home" && <HomeTab />}
-        {activeTab === "positions" && <PositionsTab />}
+        {activeTab === "bets" && <BetsTab />}
         {activeTab === "profile" && <ProfileTab />}
       </main>
 
       <nav
         className={cn(
-          "fixed bottom-0 left-0 right-0 bg-black/60 backdrop-blur-xl border-t border-white/5 safe-area-inset-bottom z-40 transition-transform duration-300",
+          "fixed bottom-0 left-0 right-0 bg-background/90 dark:bg-black/60 backdrop-blur-xl border-t border-border dark:border-white/5 safe-area-inset-bottom z-40 transition-transform duration-300",
+          "md:hidden",
           isModalOpen && "translate-y-full",
         )}
       >
-        <div className="flex justify-around items-center h-16 max-w-md mx-auto px-4">
+        <div className="flex justify-around items-center h-16 max-w-2xl mx-auto px-4">
           <button
             onClick={() => setActiveTab("home")}
             className={cn(
               "relative flex flex-col items-center justify-center gap-0.5 w-20 h-12 rounded-2xl transition-all duration-300",
-              activeTab === "home" ? "text-white" : "text-zinc-500 hover:text-zinc-300",
+              activeTab === "home" ? "text-primary dark:text-white" : "text-muted-foreground hover:text-foreground dark:text-zinc-500 dark:hover:text-zinc-300",
             )}
           >
-            {activeTab === "home" && <div className="absolute inset-0 bg-white/10 rounded-2xl" />}
+            {activeTab === "home" && <div className="absolute inset-0 bg-primary/10 dark:bg-white/10 rounded-2xl" />}
             <Home
               className={cn(
                 "h-5 w-5 relative z-10",
-                activeTab === "home" && "drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]",
+                activeTab === "home" && "drop-shadow-[0_0_8px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]",
               )}
             />
-            <span className="text-[10px] font-semibold relative z-10">Markets</span>
+            <span className="text-[10px] font-semibold relative z-10">Predictions</span>
           </button>
 
           <button
-            onClick={() => setActiveTab("positions")}
+            onClick={() => setActiveTab("bets")}
             className={cn(
               "relative flex flex-col items-center justify-center gap-0.5 w-20 h-12 rounded-2xl transition-all duration-300",
-              activeTab === "positions" ? "text-white" : "text-zinc-500 hover:text-zinc-300",
+              activeTab === "bets" ? "text-primary dark:text-white" : "text-muted-foreground hover:text-foreground dark:text-zinc-500 dark:hover:text-zinc-300",
             )}
           >
-            {activeTab === "positions" && <div className="absolute inset-0 bg-white/10 rounded-2xl" />}
-            <BarChart3
+            {activeTab === "bets" && <div className="absolute inset-0 bg-primary/10 dark:bg-white/10 rounded-2xl" />}
+            <Trophy
               className={cn(
                 "h-5 w-5 relative z-10",
-                activeTab === "positions" && "drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]",
+                activeTab === "bets" && "drop-shadow-[0_0_8px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]",
               )}
             />
-            <span className="text-[10px] font-semibold relative z-10">Positions</span>
+            <span className="text-[10px] font-semibold relative z-10">My Bets</span>
           </button>
 
           <button
             onClick={() => setActiveTab("profile")}
             className={cn(
               "relative flex flex-col items-center justify-center gap-0.5 w-20 h-12 rounded-2xl transition-all duration-300",
-              activeTab === "profile" ? "text-white" : "text-zinc-500 hover:text-zinc-300",
+              activeTab === "profile" ? "text-primary dark:text-white" : "text-muted-foreground hover:text-foreground dark:text-zinc-500 dark:hover:text-zinc-300",
             )}
           >
-            {activeTab === "profile" && <div className="absolute inset-0 bg-white/10 rounded-2xl" />}
-            <User
-              className={cn(
-                "h-5 w-5 relative z-10",
-                activeTab === "profile" && "drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]",
-              )}
-            />
+            {activeTab === "profile" && <div className="absolute inset-0 bg-primary/10 dark:bg-white/10 rounded-2xl" />}
+            {profilePicture ? (
+              <img
+                src={profilePicture}
+                alt=""
+                className={cn(
+                  "h-5 w-5 rounded-full object-cover relative z-10 ring-1",
+                  activeTab === "profile" ? "ring-primary/40 dark:ring-white/40" : "ring-border dark:ring-white/10",
+                )}
+              />
+            ) : (
+              <User
+                className={cn(
+                  "h-5 w-5 relative z-10",
+                  activeTab === "profile" && "drop-shadow-[0_0_8px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]",
+                )}
+              />
+            )}
             <span className="text-[10px] font-semibold relative z-10">Profile</span>
           </button>
         </div>

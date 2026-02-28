@@ -1,17 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-// USDC contract addresses
-const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-const USDC_POLYGON = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
+const USDC_BASE = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
 
-// ERC20 balanceOf ABI
 const BALANCE_OF_ABI = "0x70a08231"
 
-async function getERC20Balance(rpcUrl: string, tokenAddress: string, walletAddress: string): Promise<number> {
+const BASE_RPC = "https://sepolia.base.org"
+
+async function getERC20Balance(tokenAddress: string, walletAddress: string): Promise<number> {
   const paddedAddress = walletAddress.slice(2).toLowerCase().padStart(64, "0")
   const data = `${BALANCE_OF_ABI}${paddedAddress}`
 
-  const response = await fetch(rpcUrl, {
+  const response = await fetch(BASE_RPC, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -25,13 +24,13 @@ async function getERC20Balance(rpcUrl: string, tokenAddress: string, walletAddre
   const result = await response.json()
   if (result.result && result.result !== "0x") {
     const balanceWei = BigInt(result.result)
-    return Number(balanceWei) / 1e6 // USDC has 6 decimals
+    return Number(balanceWei) / 1e6 
   }
   return 0
 }
 
-async function getNativeBalance(rpcUrl: string, walletAddress: string): Promise<number> {
-  const response = await fetch(rpcUrl, {
+async function getNativeBalance(walletAddress: string): Promise<number> {
+  const response = await fetch(BASE_RPC, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -59,36 +58,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const BASE_RPC = "https://mainnet.base.org"
-    const POLYGON_RPC = "https://polygon-rpc.com"
-
-  
-    const [usdcBase, usdcPolygon, ethBase, maticPolygon] = await Promise.all([
-      getERC20Balance(BASE_RPC, USDC_BASE, address),
-      getERC20Balance(POLYGON_RPC, USDC_POLYGON, address),
-      getNativeBalance(BASE_RPC, address),
-      getNativeBalance(POLYGON_RPC, address),
+    const [usdc, eth] = await Promise.all([
+      getERC20Balance(USDC_BASE, address),
+      getNativeBalance(address),
     ])
 
-    return NextResponse.json({
-      base: {
-        usdc: usdcBase,
-        eth: ethBase,
-      },
-      polygon: {
-        usdc: usdcPolygon,
-        matic: maticPolygon,
-      },
-      total: {
-        usdc: usdcBase + usdcPolygon,
-      },
-    })
+    return NextResponse.json({ usdc, eth })
   } catch (error) {
     console.error("Balance fetch error:", error)
-    return NextResponse.json({
-      base: { usdc: 0, eth: 0 },
-      polygon: { usdc: 0, matic: 0 },
-      total: { usdc: 0 },
-    })
+    return NextResponse.json({ usdc: 0, eth: 0 })
   }
 }

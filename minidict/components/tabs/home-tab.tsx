@@ -1,20 +1,23 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Search, TrendingUp, RefreshCw } from "lucide-react"
+import { Search, TrendingUp, RefreshCw, Sparkles } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MarketCard } from "@/components/market-card"
-import { fetchMarkets } from "@/lib/polymarket"
-import type { Market } from "@/lib/types"
+import type { EngagementMarket } from "@/lib/types"
+
+type FilterType = "active" | "resolved" | "all"
+type SortType = "pool" | "ending" | "newest"
 
 export function HomeTab() {
-  const [markets, setMarkets] = useState<Market[]>([])
+  const [markets, setMarkets] = useState<EngagementMarket[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [sortBy, setSortBy] = useState<"volume" | "recent" | "ending">("volume")
+  const [filter, setFilter] = useState<FilterType>("active")
+  const [sortBy, setSortBy] = useState<SortType>("pool")
 
   const loadMarkets = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -24,15 +27,11 @@ export function HomeTab() {
     }
 
     try {
-      const data = await fetchMarkets({
-        limit: 500,
-        closed: false,
-        active: true,
-        order: "volume24hr",
-        ascending: false,
-      })
+      fetch("/api/cron/resolve").catch(() => {})
 
-      setMarkets(data)
+      const res = await fetch("/api/markets")
+      const data = await res.json()
+      setMarkets(data || [])
     } catch (error) {
       console.error("Failed to fetch markets:", error)
       setMarkets([])
@@ -44,53 +43,40 @@ export function HomeTab() {
 
   useEffect(() => {
     loadMarkets()
+
+    const interval = setInterval(() => loadMarkets(true), 30000)
+    return () => clearInterval(interval)
   }, [loadMarkets])
 
+  const now = Date.now() / 1000
   const filteredAndSortedMarkets = markets
     .filter((market) => {
-      if (market.endDate) {
-        const endTime = new Date(market.endDate).getTime()
-        const now = Date.now()
-        if (endTime < now) return false
-      }
-
+      if (filter === "active" && (market.resolved || market.deadline < now)) return false
+      if (filter === "resolved" && !market.resolved) return false
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
-        const matchesSearch =
-          market.question?.toLowerCase().includes(query) || market.description?.toLowerCase().includes(query)
-        if (!matchesSearch) return false
+        return (
+          market.castText?.toLowerCase().includes(query) ||
+          market.castAuthor?.toLowerCase().includes(query)
+        )
       }
       return true
     })
     .sort((a, b) => {
-      if (sortBy === "volume") {
-        const getVolume = (m: Market) => {
-          const vol24 = m.volume24hr
-          const volTotal = m.volume
-          if (vol24 !== null && vol24 !== undefined) {
-            return typeof vol24 === "number" ? vol24 : Number.parseFloat(String(vol24)) || 0
-          }
-          if (volTotal !== null && volTotal !== undefined) {
-            return typeof volTotal === "number" ? volTotal : Number.parseFloat(String(volTotal)) || 0
-          }
-          return 0
-        }
-        return getVolume(b) - getVolume(a)
-      } else if (sortBy === "recent") {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
-        return dateB - dateA
-      } else if (sortBy === "ending") {
-        const now = Date.now()
-        const dateA = a.endDate ? new Date(a.endDate).getTime() : Number.MAX_SAFE_INTEGER
-        const dateB = b.endDate ? new Date(b.endDate).getTime() : Number.MAX_SAFE_INTEGER
-        return dateA - dateB
+      if (sortBy === "pool") {
+        return (b.totalYesAmount + b.totalNoAmount) - (a.totalYesAmount + a.totalNoAmount)
+      }
+      if (sortBy === "ending") {
+        return a.deadline - b.deadline
+      }
+      if (sortBy === "newest") {
+        return b.id - a.id
       }
       return 0
     })
 
   return (
-    <div className="px-3 py-4 max-w-lg mx-auto">
+    <div className="px-3 py-4 max-w-3xl mx-auto">
       <div className="relative mb-3">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -101,21 +87,38 @@ export function HomeTab() {
         />
       </div>
 
+      {/* Filter Tabs */}
+      <div className="flex gap-1.5 mb-3">
+        {(["active", "resolved", "all"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              filter === f
+                ? "bg-primary/20 text-primary"
+                : "bg-secondary/50 text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {f.charAt(0).toUpperCase() + f.slice(1)}
+          </button>
+        ))}
+      </div>
+
       <div className="flex items-center justify-between mb-3 gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
-          <TrendingUp className="h-4 w-4 text-primary flex-shrink-0" />
-          <h2 className="font-semibold text-foreground text-sm truncate">Markets</h2>
+          <Sparkles className="h-4 w-4 text-primary shrink-0" />
+          <h2 className="font-semibold text-foreground text-sm truncate">Predictions</h2>
           <span className="text-xs text-muted-foreground">({filteredAndSortedMarkets.length})</span>
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortType)}>
             <SelectTrigger className="w-[110px] h-8 text-xs bg-secondary/50 border-border/50 rounded-lg">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="volume">Trending</SelectItem>
-              <SelectItem value="recent">Most Recent</SelectItem>
+              <SelectItem value="pool">Biggest Pool</SelectItem>
               <SelectItem value="ending">Ending Soon</SelectItem>
+              <SelectItem value="newest">Newest</SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -132,18 +135,21 @@ export function HomeTab() {
 
       {/* Markets List */}
       {loading ? (
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-36 bg-card rounded-xl animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-48 bg-card rounded-xl animate-pulse" />
           ))}
         </div>
       ) : filteredAndSortedMarkets.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p>No markets found</p>
-          <p className="text-sm mt-2">Try a different search</p>
+        <div className="text-center py-16">
+          <Sparkles className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+          <p className="text-muted-foreground font-medium">No predictions found</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {filter === "active" ? "No active markets right now" : "Try a different filter or search"}
+          </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {filteredAndSortedMarkets.map((market) => (
             <MarketCard key={market.id} market={market} />
           ))}

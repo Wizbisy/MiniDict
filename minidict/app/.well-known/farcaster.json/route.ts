@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 
 export async function GET() {
-  const URL = process.env.NEXT_PUBLIC_URL || "https://minidict.app"
-  const LOGO_IMAGE = `${URL}/images/minidict-logo.png`
+  const URL = process.env.PUBLIC_URL
+  const LOGO = `${URL}/images/minidict-logo.png`
+  const ICON = `${URL}/images/minidict.png`
 
   return NextResponse.json({
     "accountAssociation": {
@@ -13,21 +14,21 @@ export async function GET() {
     miniapp: {
       version: "1",
       name: "Minidict",
-      homeUrl: "https://minidict.app",
-      iconUrl: "https://minidict.app/images/minidict.png",
-      splashImageUrl: "https://minidict.app/images/minidict.png",
+      homeUrl: URL,
+      iconUrl: ICON,
+      splashImageUrl: ICON,
       splashBackgroundColor: "#0a0a14",
-      webhookUrl: "https://minidict.app/api/webhook",
-      subtitle: "Trade prediction markets",
-      description: "Trade prediction markets on Polymarket with real-time data. Built for Base and Farcaster.",
+      webhookUrl: `${URL}/api/webhook`,
+      subtitle: "Social prediction markets",
+      description: "Predict post engagement on Farcaster. Bet on likes, recasts, and replies with USDC on Base.",
       screenshotUrls: [],
-      primaryCategory: "finance",
-      tags: ["polymarket", "prediction-markets", "trading", "defi", "base"],
-      heroImageUrl: "https://minidict.app/images/minidict-logo.png",
-      tagline: "Trade markets on Base",
-      ogTitle: "Minidict - Polymarket on Base",
-      ogDescription: "Trade prediction markets with real-time data from Polymarket",
-      ogImageUrl: "https://minidict.app/images/minidict-logo.png",
+      primaryCategory: "social",
+      tags: ["prediction-markets", "social", "engagement", "farcaster", "base"],
+      heroImageUrl: LOGO,
+      tagline: "Predict post engagement",
+      ogTitle: "Minidict - Social prediction markets",
+      ogDescription: "Predict post engagement on Farcaster. Bet on likes, recasts, and replies with USDC on Base.",
+      ogImageUrl: LOGO,
       noindex: false,
     },
     baseBuilder: {

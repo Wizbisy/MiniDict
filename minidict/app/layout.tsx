@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { MiniAppProvider } from "@/components/providers/miniapp-provider";
 import { ModalProvider } from "@/components/providers/modal-provider";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 const geist = Geist({
@@ -15,12 +16,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Minidict - Powerd by Polymarket",
-  description: "Trade prediction markets with real-time data from Polymarket on Base",
+  title: "Minidict - Social Prediction Markets on Base",
+  description: "Predict post engagement on Farcaster. Bet on likes, recasts, and replies with USDC on Base.",
   generator: "Minidict",
   openGraph: {
-    title: "Minidict - Powered by Polymarket",
-    description: "Trade prediction markets with real-time data from Polymarket",
+    title: "Minidict - Social Prediction Markets on Base",
+    description: "Predict post engagement on Farcaster. Bet on likes, recasts, and replies with USDC on Base.",
     url: "https://minidict.app",
     siteName: "Minidict",
     images: [{
@@ -36,8 +37,8 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: '@minidict',
     creator: '@minidict',
-    title: "Minidict - Powered by Polymarket",
-    description: "Trade prediction markets with real-time data from Polymarket",
+    title: "Minidict - Social Prediction Markets on Base",
+    description: "Predict post engagement on Farcaster. Bet on likes, recasts, and replies with USDC on Base.",
     images: ["https://minidict.app/images/minidict-logo.png"],
   },
   icons: {
@@ -55,7 +56,7 @@ export const metadata: Metadata = {
       version: "next",
       imageUrl: "https://minidict.app/images/minidict-logo.png",
       button: {
-        title: "Trade Markets",
+        title: "Predict Engagement",
         action: {
           type: "launch_frame",
           name: "Minidict",
@@ -82,12 +83,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      {/* Injected font variables into the body so 'font-sans' works */}
+    <html lang="en" suppressHydrationWarning>
       <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased overflow-x-hidden`}>
-        <ModalProvider>
-          <MiniAppProvider>{children}</MiniAppProvider>
-        </ModalProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <ModalProvider>
+            <MiniAppProvider>{children}</MiniAppProvider>
+          </ModalProvider>
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>

@@ -1,7 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/* Configure Tailwind v4 to use the .dark class for dark mode (compatible with next-themes) */
+@custom-variant dark (&:where(.dark, .dark *));
 
 * {
   scrollbar-width: none; 
@@ -45,25 +46,25 @@ body {
 }
 
 :root {
-  --background: oklch(0.08 0.01 260);
-  --foreground: oklch(0.98 0 0);
-  --card: oklch(0.12 0.01 260);
-  --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.12 0.01 260);
-  --popover-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.6 0.2 260);
+  --background: oklch(0.98 0 0);
+  --foreground: oklch(0.14 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.14 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.14 0 0);
+  --primary: oklch(0.2 0 0);
   --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.18 0.01 260);
-  --secondary-foreground: oklch(0.98 0 0);
-  --muted: oklch(0.18 0.01 260);
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.6 0.2 260);
-  --accent-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.96 0 0);
+  --secondary-foreground: oklch(0.2 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.55 0 0);
+  --accent: oklch(0.96 0 0);
+  --accent-foreground: oklch(0.2 0 0);
   --destructive: oklch(0.6 0.24 27);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.22 0.01 260);
-  --input: oklch(0.18 0.01 260);
-  --ring: oklch(0.6 0.2 260);
+  --border: oklch(0.92 0 0);
+  --input: oklch(0.92 0 0);
+  --ring: oklch(0.7 0 0);
   --chart-1: oklch(0.6 0.2 260);
   --chart-2: oklch(0.65 0.18 220);
   --chart-3: oklch(0.7 0.15 50);

@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
 
-// Farcaster SDK types
 interface FarcasterUser {
   fid: number
   username?: string
@@ -19,17 +18,15 @@ interface WalletState {
   balance: {
     usdc: number
     eth: number
-    usdcPolygon: number
-    matic: number
-  }
-  portfolio: {
-    totalValue: number
-    openPositionsCount: number
-    pnl: number
-    isLoading: boolean
   }
   basename: string | null
   basenameAvatar: string | null
+}
+
+interface TransactionResult {
+  success: boolean
+  txHash?: string
+  error?: string
 }
 
 interface MiniAppContextType extends WalletState {
@@ -43,7 +40,7 @@ interface MiniAppContextType extends WalletState {
   openUrl: (url: string) => void
   close: () => void
   refreshBalances: () => Promise<void>
-  refreshPortfolio: () => Promise<void>
+  sendTransaction: (to: string, data: string, value: string) => Promise<TransactionResult>
 }
 
 const MiniAppContext = createContext<MiniAppContextType | null>(null)
@@ -62,7 +59,7 @@ interface MiniAppProviderProps {
   children: ReactNode
 }
 
-const BASE_CHAIN_ID = 8453
+const BASE_CHAIN_ID = 84532
 
 let farcasterProvider: {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
@@ -81,14 +78,6 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
     balance: {
       usdc: 0,
       eth: 0,
-      usdcPolygon: 0,
-      matic: 0,
-    },
-    portfolio: {
-      totalValue: 0,
-      openPositionsCount: 0,
-      pnl: 0,
-      isLoading: false,
     },
     basename: null,
     basenameAvatar: null,
@@ -126,10 +115,8 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
       setWalletState((prev) => ({
         ...prev,
         balance: {
-          usdc: data.base?.usdc || 0,
-          eth: data.base?.eth || 0,
-          usdcPolygon: data.polygon?.usdc || 0,
-          matic: data.polygon?.matic || 0,
+          usdc: data.usdc || 0,
+          eth: data.eth || 0,
         },
       }))
     } catch (error) {
@@ -137,43 +124,12 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
     }
   }, [walletState.address])
 
-  const refreshPortfolio = useCallback(async () => {
-    if (!walletState.address) return
-
-    setWalletState((prev) => ({
-      ...prev,
-      portfolio: { ...prev.portfolio, isLoading: true },
-    }))
-
-    try {
-      const res = await fetch(`/api/portfolio?address=${walletState.address}`)
-      const data = await res.json()
-
-      setWalletState((prev) => ({
-        ...prev,
-        portfolio: {
-          totalValue: data.totalValue || 0,
-          openPositionsCount: data.openPositionsCount || 0,
-          pnl: data.pnl || 0,
-          isLoading: false,
-        },
-      }))
-    } catch (error) {
-      console.error("Failed to fetch portfolio:", error)
-      setWalletState((prev) => ({
-        ...prev,
-        portfolio: { ...prev.portfolio, isLoading: false },
-      }))
-    }
-  }, [walletState.address])
-
   useEffect(() => {
     if (walletState.address && walletState.isConnected) {
       refreshBalances()
-      refreshPortfolio()
       fetchBasename(walletState.address)
     }
-  }, [walletState.address, walletState.isConnected, refreshBalances, refreshPortfolio, fetchBasename])
+  }, [walletState.address, walletState.isConnected, refreshBalances, fetchBasename])
 
   const connectWithFarcaster = useCallback(async () => {
     if (!farcasterProvider) return false
@@ -207,9 +163,8 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
     if (typeof window === "undefined" || !window.ethereum) return false
 
     try {
-      // Check if already connected (don't prompt, just check existing accounts)
       const accounts = (await window.ethereum.request({
-        method: "eth_accounts", // This doesn't prompt, just returns connected accounts
+        method: "eth_accounts",
       })) as string[]
 
       if (accounts && accounts.length > 0) {
@@ -226,7 +181,6 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
           isConnected: true,
         }))
 
-        // Auto switch to Base if not on Base
         if (currentChainId !== BASE_CHAIN_ID) {
           try {
             await window.ethereum.request({
@@ -235,7 +189,6 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
             })
             setWalletState((prev) => ({ ...prev, chainId: BASE_CHAIN_ID }))
           } catch {
-            // Ignore switch errors on auto-connect
           }
         }
         return true
@@ -300,7 +253,7 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
             } catch {
               setIsFrameReady(true)
             }
-            return // Exit early if Farcaster context found
+            return
           }
         }
       } catch {
@@ -316,7 +269,6 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
       const handleAccountsChanged = (accounts: unknown) => {
         const accts = accounts as string[]
         if (accts.length === 0) {
-          // Disconnected
           setWalletState((prev) => ({
             ...prev,
             address: null,
@@ -380,18 +332,15 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
         await sdk.actions.close()
       }
     } catch {
-      // Not in frame context
     }
   }, [])
 
   const connect = useCallback(async () => {
-    // Try Farcaster provider first if in Farcaster context
     if (isFarcasterContext && farcasterProvider) {
       const success = await connectWithFarcaster()
       if (success) return
     }
 
-    // Fallback to browser wallet
     if (typeof window === "undefined" || !window.ethereum) {
       alert("Please install a Web3 wallet like MetaMask or Coinbase Wallet")
       return
@@ -423,10 +372,10 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
               params: [
                 {
                   chainId: `0x${BASE_CHAIN_ID.toString(16)}`,
-                  chainName: "Base",
+                  chainName: "Base Sepolia",
                   nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-                  rpcUrls: ["https://mainnet.base.org"],
-                  blockExplorerUrls: ["https://basescan.org"],
+                  rpcUrls: ["https://sepolia.base.org"],
+                  blockExplorerUrls: ["https://sepolia.basescan.org"],
                 },
               ],
             })
@@ -453,8 +402,7 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
       chainId: null,
       isConnecting: false,
       isConnected: false,
-      balance: { usdc: 0, eth: 0, usdcPolygon: 0, matic: 0 },
-      portfolio: { totalValue: 0, openPositionsCount: 0, pnl: 0, isLoading: false },
+      balance: { usdc: 0, eth: 0 },
       basename: null,
       basenameAvatar: null,
     })
@@ -475,6 +423,35 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
     }
   }, [])
 
+  const sendTransaction = useCallback(async (to: string, data: string, value: string): Promise<TransactionResult> => {
+    const provider = farcasterProvider || window.ethereum
+    if (!provider || !walletState.address) {
+      return { success: false, error: "Wallet not connected" }
+    }
+
+    try {
+      const txHash = (await provider.request({
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from: walletState.address,
+            to,
+            data,
+            value,
+          },
+        ],
+      })) as string
+
+      return { success: true, txHash }
+    } catch (error) {
+      console.error("Transaction failed:", error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Transaction was rejected",
+      }
+    }
+  }, [walletState.address])
+
   return (
     <MiniAppContext.Provider
       value={{
@@ -489,7 +466,7 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
         openUrl,
         close,
         refreshBalances,
-        refreshPortfolio,
+        sendTransaction,
       }}
     >
       {children}

@@ -2,10 +2,8 @@ import { NextResponse } from "next/server"
 import { createPublicClient, http, namehash } from "viem"
 import { base } from "viem/chains"
 
-// Base L2 Resolver contract address
 const BASE_L2_RESOLVER = "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD"
 
-// ABI for text() function to get avatar
 const RESOLVER_ABI = [
   {
     inputs: [
@@ -65,13 +63,11 @@ export async function GET(request: Request) {
       const data = await response.json()
 
       if (Array.isArray(data) && data.length > 0) {
-        // Look for basename first
         const baseProfile = data.find((p: { platform: string }) => p.platform === "basenames")
         if (baseProfile) {
           const basename = baseProfile.identity || baseProfile.displayName
           let avatar = baseProfile.avatar
 
-          // Try on-chain avatar if not from API
           if (!avatar && basename) {
             avatar = await fetchAvatarFromChain(basename)
           }
@@ -83,7 +79,6 @@ export async function GET(request: Request) {
           return NextResponse.json({ basename, avatar })
         }
 
-        // Fallback to ENS
         const ensProfile = data.find((p: { platform: string }) => p.platform === "ens")
         if (ensProfile) {
           return NextResponse.json({
@@ -92,7 +87,6 @@ export async function GET(request: Request) {
           })
         }
 
-        // Fallback to Farcaster
         const farcasterProfile = data.find((p: { platform: string }) => p.platform === "farcaster")
         if (farcasterProfile) {
           return NextResponse.json({
@@ -101,7 +95,6 @@ export async function GET(request: Request) {
           })
         }
 
-        // Use first available profile avatar
         const firstWithAvatar = data.find((p: { avatar?: string }) => p.avatar)
         if (firstWithAvatar) {
           return NextResponse.json({
