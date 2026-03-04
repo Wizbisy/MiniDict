@@ -1,13 +1,32 @@
 "use client"
 
 import { useState } from "react"
-import { X, Loader2, CheckCircle2, AlertCircle } from "lucide-react"
+import { X, Loader2, CheckCircle2, AlertCircle, Target, Heart, Repeat2, UserPlus, Sparkles, MessageCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useModal } from "./providers/modal-provider"
 import { useMiniApp } from "./providers/miniapp-provider"
-import { buildClaimRewardTx, waitForTxReceipt } from "@/lib/contracts"
-import type { Quest } from "@/lib/types"
+import { buildClaimRewardTx } from "@/lib/contracts"
+import { createPublicClient, http } from "viem"
+import { baseSepolia } from "viem/chains"
+import type { Quest, ActionType } from "@/lib/types"
 import { formatUSDC, ACTION_TYPE_LABELS } from "@/lib/types"
+import { cn } from "@/lib/utils"
+
+const actionIcons: Record<ActionType, typeof Heart> = {
+  like: Heart,
+  recast: Repeat2,
+  follow: UserPlus,
+  mint_nft: Sparkles,
+  custom: MessageCircle,
+}
+
+const actionColors: Record<ActionType, string> = {
+  like: "text-rose-400",
+  recast: "text-emerald-400",
+  follow: "text-blue-400",
+  mint_nft: "text-purple-400",
+  custom: "text-amber-400",
+}
 
 interface ClaimModalProps {
   quest: Quest
@@ -21,7 +40,7 @@ export function ClaimModal({ quest, userAddress, onClose }: ClaimModalProps) {
   const [step, setStep] = useState<Step>("confirm")
   const [error, setError] = useState<string>("")
   const { setModalOpen } = useModal()
-  const { sendTransaction } = useMiniApp()
+  const { sendTransaction, farcasterUser } = useMiniApp()
 
   const handleClaim = async () => {
     try {
@@ -30,7 +49,11 @@ export function ClaimModal({ quest, userAddress, onClose }: ClaimModalProps) {
       const response = await fetch("/api/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questId: quest.id, userAddress }),
+        body: JSON.stringify({ 
+          questId: quest.id, 
+          userAddress,
+          fid: farcasterUser?.fid
+        }),
       })
 
       if (!response.ok) {
@@ -48,9 +71,17 @@ export function ClaimModal({ quest, userAddress, onClose }: ClaimModalProps) {
         throw new Error(result.error || "Transaction was rejected")
       }
 
-      const receipt = await waitForTxReceipt(result.txHash)
-      if (!receipt.success) {
-        throw new Error(receipt.error || "Claim failed on-chain")
+      const publicClient = createPublicClient({
+        chain: baseSepolia,
+        transport: http()
+      })
+
+      const receipt = await publicClient.waitForTransactionReceipt({ 
+        hash: result.txHash as `0x${string}` 
+      })
+      
+      if (receipt.status !== "success") {
+        throw new Error("Claim failed on-chain")
       }
 
       setStep("success")
@@ -85,8 +116,16 @@ export function ClaimModal({ quest, userAddress, onClose }: ClaimModalProps) {
         {step === "confirm" && (
           <div className="space-y-4">
             <div className="bg-secondary/50 rounded-xl p-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Action</span>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="h-10 w-10 rounded-xl bg-linear-to-br from-primary/20 to-primary/5 flex items-center justify-center shrink-0">
+                    {(() => {
+                      const Icon = actionIcons[quest.actionType]
+                      return <Icon className={cn("h-5 w-5", actionColors[quest.actionType])} />
+                    })()}
+                  </div>
+                  <span className="text-muted-foreground">Action</span>
+                </div>
                 <span className="font-medium">{ACTION_TYPE_LABELS[quest.actionType]}</span>
               </div>
               <div className="flex justify-between text-sm">
@@ -100,7 +139,7 @@ export function ClaimModal({ quest, userAddress, onClose }: ClaimModalProps) {
             </div>
 
             <div className="flex items-start gap-2 text-xs text-muted-foreground bg-amber-500/5 rounded-lg p-3">
-              <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
               <span>Make sure you have completed the required action before claiming. Invalid claims will be rejected.</span>
             </div>
 

@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const questId = searchParams.get("questId")
   const address = searchParams.get("address")
+  const fid = searchParams.get("fid")
 
   if (!questId || !address) {
     return NextResponse.json({ error: "questId and address required" }, { status: 400 })
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ verified: false, reason: "You cannot claim your own quest" })
     }
 
-    const userFid = await getFidFromAddress(address)
+    const userFid = fid ? parseInt(fid) : await getFidFromAddress(address)
     if (!userFid) {
       return NextResponse.json({ verified: false, reason: "Farcaster account not found for this wallet" })
     }

@@ -16,12 +16,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Minidict - Social Prediction Markets on Base",
-  description: "Predict post engagement on Farcaster. Bet on likes, recasts, and replies with USDC on Base.",
+  title: "Minidict - Proof of Action Quests",
+  description: "Complete Farcaster actions and earn USDC rewards on Base.",
   generator: "Minidict",
   openGraph: {
-    title: "Minidict - Social Prediction Markets on Base",
-    description: "Predict post engagement on Farcaster. Bet on likes, recasts, and replies with USDC on Base.",
+    title: "Minidict - Proof of Action Quests",
+    description: "Complete Farcaster actions and earn USDC rewards on Base.",
     url: "https://minidict.app",
     siteName: "Minidict",
     images: [{
@@ -37,8 +37,8 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: '@minidict',
     creator: '@minidict',
-    title: "Minidict - Social Prediction Markets on Base",
-    description: "Predict post engagement on Farcaster. Bet on likes, recasts, and replies with USDC on Base.",
+    title: "Minidict - Proof of Action Quests",
+    description: "Complete Farcaster actions and earn USDC rewards on Base.",
     images: ["https://minidict.app/images/minidict-logo.png"],
   },
   icons: {
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
       version: "next",
       imageUrl: "https://minidict.app/images/minidict-logo.png",
       button: {
-        title: "Predict Engagement",
+        title: "View Quests",
         action: {
           type: "launch_frame",
           name: "Minidict",

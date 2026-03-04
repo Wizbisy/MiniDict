@@ -22,7 +22,7 @@ const CLAIM_TYPES = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { questId, userAddress } = await request.json()
+    const { questId, userAddress, fid } = await request.json()
 
     if (questId === undefined || !userAddress) {
       return NextResponse.json(
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const userFid = await getFidFromAddress(userAddress)
+    const userFid = fid ? parseInt(fid) : await getFidFromAddress(userAddress)
     if (!userFid) {
       return NextResponse.json(
         { error: "Could not find your Farcaster account — make sure your wallet is connected to Farcaster" },

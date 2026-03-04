@@ -71,7 +71,7 @@ export function QuestCard({ quest, userAddress, hasClaimed = false, onClaimed }:
   const [copied, setCopied] = useState(false)
   const [actionVerified, setActionVerified] = useState<boolean | null>(null)
   const [verifyReason, setVerifyReason] = useState("")
-  const { openUrl } = useMiniApp()
+  const { openUrl, farcasterUser } = useMiniApp()
 
   const ActionIcon = actionIcons[quest.actionType]
   const remaining = quest.maxClaims - quest.claimCount
@@ -92,17 +92,26 @@ export function QuestCard({ quest, userAddress, hasClaimed = false, onClaimed }:
   useEffect(() => {
     if (!canClaim || !userAddress) return
     setActionVerified(null)
-    fetch(`/api/verify?questId=${quest.id}&address=${userAddress}`)
+    const url = `/api/verify?questId=${quest.id}&address=${userAddress}${farcasterUser ? `&fid=${farcasterUser.fid}` : ''}`
+    fetch(url)
       .then(r => r.json())
       .then(data => {
         setActionVerified(data.verified === true)
         if (!data.verified) setVerifyReason(data.reason || "Action not completed")
       })
       .catch(() => setActionVerified(null))
-  }, [quest.id, userAddress, canClaim])
+  }, [quest.id, userAddress, canClaim, farcasterUser])
 
   const copyQuestLink = async () => {
-    const url = `${window.location.origin}/quest/${quest.id}`
+    const isWarpcast = window.navigator.userAgent.includes("Farcaster") || !!farcasterUser
+    
+    let url = ""
+    if (isWarpcast) {
+      url = `https://farcaster.xyz/miniapps/8pY0ZGgsf_2u/minidict/quest/${quest.id}`
+    } else {
+      url = `https://base.app/app/testnet.minidict.app/quest/${quest.id}`
+    }
+    
     await navigator.clipboard.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
