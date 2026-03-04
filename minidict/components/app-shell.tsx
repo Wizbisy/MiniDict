@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Home, User, Trophy } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { HomeTab } from "./tabs/home-tab"
@@ -15,8 +15,31 @@ export function AppShell() {
   const [activeTab, setActiveTab] = useState<TabType>("home")
   const { isModalOpen } = useModal()
   const { farcasterUser, basenameAvatar, address } = useMiniApp()
+  const [navHidden, setNavHidden] = useState(false)
+  const lastScrollY = useRef(0)
 
   const profilePicture = basenameAvatar || farcasterUser?.pfpUrl || null
+
+  useEffect(() => {
+    const threshold = 10
+    const handleScroll = () => {
+      const currentY = window.scrollY
+      const delta = currentY - lastScrollY.current
+
+      if (Math.abs(delta) < threshold) return
+
+      if (delta > 0 && currentY > 80) {
+        setNavHidden(true)
+      } else {
+        setNavHidden(false)
+      }
+
+      lastScrollY.current = currentY
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true })
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -24,7 +47,7 @@ export function AppShell() {
 
       <main className="flex-1 pb-20 md:pb-6 pt-14">
         {activeTab === "home" && <HomeTab />}
-        {activeTab === "bets" && <BetsTab />}
+        {activeTab === "quests" && <BetsTab />}
         {activeTab === "profile" && <ProfileTab />}
       </main>
 
@@ -32,7 +55,7 @@ export function AppShell() {
         className={cn(
           "fixed bottom-0 left-0 right-0 bg-background/90 dark:bg-black/60 backdrop-blur-xl border-t border-border dark:border-white/5 safe-area-inset-bottom z-40 transition-transform duration-300",
           "md:hidden",
-          isModalOpen && "translate-y-full",
+          (isModalOpen || navHidden) && "translate-y-full",
         )}
       >
         <div className="flex justify-around items-center h-16 max-w-2xl mx-auto px-4">
@@ -50,24 +73,24 @@ export function AppShell() {
                 activeTab === "home" && "drop-shadow-[0_0_8px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]",
               )}
             />
-            <span className="text-[10px] font-semibold relative z-10">Predictions</span>
+            <span className="text-[10px] font-semibold relative z-10">Quests</span>
           </button>
 
           <button
-            onClick={() => setActiveTab("bets")}
+            onClick={() => setActiveTab("quests")}
             className={cn(
               "relative flex flex-col items-center justify-center gap-0.5 w-20 h-12 rounded-2xl transition-all duration-300",
-              activeTab === "bets" ? "text-primary dark:text-white" : "text-muted-foreground hover:text-foreground dark:text-zinc-500 dark:hover:text-zinc-300",
+              activeTab === "quests" ? "text-primary dark:text-white" : "text-muted-foreground hover:text-foreground dark:text-zinc-500 dark:hover:text-zinc-300",
             )}
           >
-            {activeTab === "bets" && <div className="absolute inset-0 bg-primary/10 dark:bg-white/10 rounded-2xl" />}
+            {activeTab === "quests" && <div className="absolute inset-0 bg-primary/10 dark:bg-white/10 rounded-2xl" />}
             <Trophy
               className={cn(
                 "h-5 w-5 relative z-10",
-                activeTab === "bets" && "drop-shadow-[0_0_8px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]",
+                activeTab === "quests" && "drop-shadow-[0_0_8px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]",
               )}
             />
-            <span className="text-[10px] font-semibold relative z-10">My Bets</span>
+            <span className="text-[10px] font-semibold relative z-10">My Claims</span>
           </button>
 
           <button

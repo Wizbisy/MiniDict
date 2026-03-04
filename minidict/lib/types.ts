@@ -1,69 +1,36 @@
+export type ActionType = "like" | "recast" | "follow" | "mint_nft" | "custom"
+export const ACTION_TYPES: ActionType[] = ["like", "recast", "follow", "mint_nft", "custom"]
+export const QUEST_ACTION_TYPES: ActionType[] = ["like", "recast", "follow", "custom"]
+export const ACTION_TYPE_LABELS: Record<ActionType, string> = {
+  like: "Like",
+  recast: "Recast",
+  follow: "Follow",
+  mint_nft: "Mint",
+  custom: "Reply",
+}
 
-export type MetricType = "likes" | "recasts" | "replies" | "followers"
-
-export interface EngagementMarket {
+export interface Quest {
   id: number
-  castHash: string
-  castAuthor: string
-  castAuthorPfp: string
-  castText: string
-  metricType: MetricType
-  targetValue: number
-  currentValue: number
-  deadline: number 
-  totalYesAmount: number 
-  totalNoAmount: number 
-  resolved: boolean
-  outcome: boolean | null 
-  creator: string 
+  creator: string
+  targetIdentifier: string
+  actionType: ActionType
+  payoutPerClaim: number    
+  maxClaims: number
+  claimCount: number
+  deadline: number          
+  isActive: boolean
 }
 
-export interface UserBet {
-  marketId: number
-  prediction: boolean 
-  amount: number 
-  claimed: boolean
+export type TabType = "home" | "quests" | "profile"
+
+
+export function actionTypeFromIndex(index: number): ActionType {
+  return ACTION_TYPES[index] ?? "custom"
 }
 
-export interface CastDetails {
-  hash: string
-  author: {
-    fid: number
-    username: string
-    displayName: string
-    pfpUrl: string
-  }
-  text: string
-  timestamp: string
-  engagement: {
-    likes: number
-    recasts: number
-    replies: number
-  }
-}
-
-export type TabType = "home" | "bets" | "profile"
-
-export function computeOdds(totalYes: number, totalNo: number): { yesPrice: number; noPrice: number } {
-  const total = totalYes + totalNo
-  if (total === 0) return { yesPrice: 0.5, noPrice: 0.5 }
-  return {
-    yesPrice: totalYes / total,
-    noPrice: totalNo / total,
-  }
-}
-
-export function formatMetricType(type: MetricType): string {
-  switch (type) {
-    case "likes":
-      return "Likes"
-    case "recasts":
-      return "Recasts"
-    case "replies":
-      return "Replies"
-    case "followers":
-      return "Followers"
-  }
+export function actionTypeToIndex(type: ActionType): number {
+  const i = ACTION_TYPES.indexOf(type)
+  return i >= 0 ? i : 4 
 }
 
 export function formatUSDC(amount: number): string {
@@ -85,4 +52,27 @@ export function formatDeadline(timestamp: number): string {
   }
   if (hours > 0) return `${hours}h ${minutes}m left`
   return `${minutes}m left`
+}
+
+export function getRemainingClaimsText(quest: Quest): string {
+  const remaining = quest.maxClaims - quest.claimCount
+  return `${remaining} / ${quest.maxClaims} claims left`
+}
+
+
+export interface CastDetails {
+  hash: string
+  author: {
+    fid: number
+    username: string
+    displayName: string
+    pfpUrl: string
+  }
+  text: string
+  timestamp: string
+  engagement: {
+    likes: number
+    recasts: number
+    replies: number
+  }
 }

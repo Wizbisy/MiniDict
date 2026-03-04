@@ -1,159 +1,214 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { Search, TrendingUp, RefreshCw, Sparkles } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MarketCard } from "@/components/market-card"
-import type { EngagementMarket } from "@/lib/types"
+import { useState, useEffect, useMemo } from "react"
+import { Loader2, RefreshCw, Plus, SlidersHorizontal } from "lucide-react"
+import { QuestCard } from "../quest-card"
+import { CreateQuestModal } from "../create-quest-modal"
+import { getAllQuests, hasUserClaimed } from "@/lib/contracts"
+import { useMiniApp } from "../providers/miniapp-provider"
+import { ACTION_TYPE_LABELS } from "@/lib/types"
+import type { Quest, ActionType } from "@/lib/types"
 
-type FilterType = "active" | "resolved" | "all"
-type SortType = "pool" | "ending" | "newest"
+type SortOption = "newest" | "reward" | "ending"
+type FilterOption = "all" | ActionType
 
 export function HomeTab() {
-  const [markets, setMarkets] = useState<EngagementMarket[]>([])
+  const [quests, setQuests] = useState<Quest[]>([])
+  const [claimedMap, setClaimedMap] = useState<Record<number, boolean>>({})
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [filter, setFilter] = useState<FilterType>("active")
-  const [sortBy, setSortBy] = useState<SortType>("pool")
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [sortBy, setSortBy] = useState<SortOption>("newest")
+  const [filterBy, setFilterBy] = useState<FilterOption>("all")
+  const [showFilters, setShowFilters] = useState(false)
+  const { address } = useMiniApp()
 
-  const loadMarkets = useCallback(async (isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true)
-    } else {
-      setLoading(true)
-    }
-
+  const fetchQuests = async (showRefresh = false) => {
     try {
-      fetch("/api/cron/resolve").catch(() => {})
+      if (showRefresh) setRefreshing(true)
+      else setLoading(true)
 
-      const res = await fetch("/api/markets")
-      const data = await res.json()
-      setMarkets(data || [])
+      const allQuests = await getAllQuests()
+      setQuests(allQuests)
+
+      if (address) {
+        const claimed: Record<number, boolean> = {}
+        await Promise.all(
+          allQuests.map(async (q) => {
+            claimed[q.id] = await hasUserClaimed(q.id, address)
+          })
+        )
+        setClaimedMap(claimed)
+      }
     } catch (error) {
-      console.error("Failed to fetch markets:", error)
-      setMarkets([])
+      console.error("Failed to load quests:", error)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }
 
   useEffect(() => {
-    loadMarkets()
+    fetchQuests()
+  }, [address])
 
-    const interval = setInterval(() => loadMarkets(true), 30000)
-    return () => clearInterval(interval)
-  }, [loadMarkets])
+  const displayQuests = useMemo(() => {
+    let filtered = [...quests]
 
-  const now = Date.now() / 1000
-  const filteredAndSortedMarkets = markets
-    .filter((market) => {
-      if (filter === "active" && (market.resolved || market.deadline < now)) return false
-      if (filter === "resolved" && !market.resolved) return false
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        return (
-          market.castText?.toLowerCase().includes(query) ||
-          market.castAuthor?.toLowerCase().includes(query)
-        )
+    if (filterBy !== "all") {
+      filtered = filtered.filter((q) => q.actionType === filterBy)
+    }
+
+    filtered.sort((a, b) => {
+      const aClaimed = claimedMap[a.id] ?? false
+      const bClaimed = claimedMap[b.id] ?? false
+      if (aClaimed !== bClaimed) return aClaimed ? 1 : -1
+      if (a.isActive !== b.isActive) return a.isActive ? -1 : 1
+
+      switch (sortBy) {
+        case "reward":
+          return b.payoutPerClaim - a.payoutPerClaim
+        case "ending":
+          return a.deadline - b.deadline
+        case "newest":
+        default:
+          return b.id - a.id
       }
-      return true
     })
-    .sort((a, b) => {
-      if (sortBy === "pool") {
-        return (b.totalYesAmount + b.totalNoAmount) - (a.totalYesAmount + a.totalNoAmount)
-      }
-      if (sortBy === "ending") {
-        return a.deadline - b.deadline
-      }
-      if (sortBy === "newest") {
-        return b.id - a.id
-      }
-      return 0
-    })
+
+    return filtered
+  }, [quests, sortBy, filterBy, claimedMap])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
-    <div className="px-3 py-4 max-w-3xl mx-auto">
-      <div className="relative mb-3">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search markets..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9 h-10 bg-secondary/50 border-border/50 rounded-xl text-sm"
-        />
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex gap-1.5 mb-3">
-        {(["active", "resolved", "all"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-              filter === f
-                ? "bg-primary/20 text-primary"
-                : "bg-secondary/50 text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {f.charAt(0).toUpperCase() + f.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex items-center justify-between mb-3 gap-2">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <Sparkles className="h-4 w-4 text-primary shrink-0" />
-          <h2 className="font-semibold text-foreground text-sm truncate">Predictions</h2>
-          <span className="text-xs text-muted-foreground">({filteredAndSortedMarkets.length})</span>
+    <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold">Active Quests</h2>
+          <p className="text-sm text-muted-foreground">
+            Complete actions to earn USDC rewards
+          </p>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortType)}>
-            <SelectTrigger className="w-[110px] h-8 text-xs bg-secondary/50 border-border/50 rounded-lg">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pool">Biggest Pool</SelectItem>
-              <SelectItem value="ending">Ending Soon</SelectItem>
-              <SelectItem value="newest">Newest</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 rounded-lg"
-            onClick={() => loadMarkets(true)}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-all active:scale-95"
+          >
+            <Plus className="h-4 w-4" />
+            Create
+          </button>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`p-2 rounded-lg transition-colors ${showFilters ? "bg-primary/10 text-primary" : "hover:bg-secondary"}`}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => fetchQuests(true)}
             disabled={refreshing}
+            className="p-2 rounded-lg hover:bg-secondary transition-colors"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-          </Button>
+          </button>
         </div>
       </div>
 
-      {/* Markets List */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-48 bg-card rounded-xl animate-pulse" />
-          ))}
+      {/* Sort & Filter Bar */}
+      {showFilters && (
+        <div className="space-y-2 bg-secondary/30 rounded-xl p-3 animate-in slide-in-from-top-2 duration-200">
+          {/* Sort */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground w-10">Sort</span>
+            <div className="flex gap-1.5 flex-1">
+              {([
+                ["newest", "Newest"],
+                ["reward", "Top Reward"],
+                ["ending", "Ending Soon"],
+              ] as [SortOption, string][]).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setSortBy(value)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                    sortBy === value
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground w-10">Type</span>
+            <div className="flex gap-1.5 flex-1 flex-wrap">
+              <button
+                onClick={() => setFilterBy("all")}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                  filterBy === "all"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                }`}
+              >
+                All
+              </button>
+              {(["like", "recast", "follow", "custom"] as ActionType[]).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setFilterBy(type)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                    filterBy === type
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                  }`}
+                >
+                  {ACTION_TYPE_LABELS[type]}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      ) : filteredAndSortedMarkets.length === 0 ? (
-        <div className="text-center py-16">
-          <Sparkles className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-          <p className="text-muted-foreground font-medium">No predictions found</p>
+      )}
+
+      {/* Quest List */}
+      {displayQuests.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">
+            {filterBy !== "all" ? "No quests match this filter" : "No quests available yet"}
+          </p>
           <p className="text-sm text-muted-foreground mt-1">
-            {filter === "active" ? "No active markets right now" : "Try a different filter or search"}
+            {filterBy !== "all" ? "Try a different filter" : "Create the first quest!"}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {filteredAndSortedMarkets.map((market) => (
-            <MarketCard key={market.id} market={market} />
+        <div className="space-y-3">
+          {displayQuests.map((quest) => (
+            <QuestCard
+              key={quest.id}
+              quest={quest}
+              userAddress={address ?? undefined}
+              hasClaimed={claimedMap[quest.id] ?? false}
+              onClaimed={() => fetchQuests(true)}
+            />
           ))}
         </div>
+      )}
+
+      {/* Create Quest Modal */}
+      {showCreateModal && (
+        <CreateQuestModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={() => fetchQuests(true)}
+        />
       )}
     </div>
   )

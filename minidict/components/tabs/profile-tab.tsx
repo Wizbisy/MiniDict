@@ -10,17 +10,14 @@ import {
   Copy,
   Check,
   Wallet,
-  TrendingUp,
-  TrendingDown,
-  BarChart3,
+  Trophy,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useMiniApp } from "@/components/providers/miniapp-provider"
-import { getUserBets, getAllMarkets } from "@/lib/contracts"
+import { getAllQuests, hasUserClaimed } from "@/lib/contracts"
 import { formatUSDC } from "@/lib/types"
-import type { UserBet, EngagementMarket } from "@/lib/types"
-import { PnlChart } from "@/components/pnl-chart"
+import type { Quest } from "@/lib/types"
 import Image from "next/image"
 
 export function ProfileTab() {
@@ -41,87 +38,37 @@ export function ProfileTab() {
   const [comingSoonFeature, setComingSoonFeature] = useState("")
   const [copied, setCopied] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [pnlData, setPnlData] = useState<{
-    totalWagered: number
-    totalReturns: number
-    netPnL: number
-    totalMarkets: number
-    wins: number
-    losses: number
-    chartPoints: { label: string; value: number; cumulative: number }[]
-  }>({ totalWagered: 0, totalReturns: 0, netPnL: 0, totalMarkets: 0, wins: 0, losses: 0, chartPoints: [] })
+  const [questStats, setQuestStats] = useState<{
+    totalClaimed: number
+    totalEarned: number
+  }>({ totalClaimed: 0, totalEarned: 0 })
 
-  const fetchPnL = useCallback(async () => {
+  const fetchStats = useCallback(async () => {
     if (!address) return
     try {
-      const [userBets, allMarkets] = await Promise.all([getUserBets(address), getAllMarkets()])
-      const marketsMap = new Map(allMarkets.map((m) => [m.id, m]))
+      const allQuests = await getAllQuests()
+      let totalClaimed = 0
+      let totalEarned = 0
 
-      const marketGroups = new Map<number, typeof userBets>()
-      for (const b of userBets) {
-        const existing = marketGroups.get(b.marketId) || []
-        existing.push(b)
-        marketGroups.set(b.marketId, existing)
-      }
-
-      const chartPoints: { label: string; value: number; cumulative: number }[] = []
-      let cumPnL = 0
-      let totalWagered = 0
-      let totalReturns = 0
-      let wins = 0
-      let losses = 0
-
-      chartPoints.push({ label: "Start", value: 0, cumulative: 0 })
-
-      marketGroups.forEach((marketBets, marketId) => {
-        const market = marketsMap.get(marketId)
-        if (!market) return
-
-        const spent = marketBets.reduce((s, b) => s + b.amount, 0)
-        totalWagered += spent
-
-        if (!market.resolved) return
-
-        let payout = 0
-        const pool = market.totalYesAmount + market.totalNoAmount
-        for (const b of marketBets) {
-          if (market.outcome === b.prediction) {
-            wins++
-            const side = b.prediction ? market.totalYesAmount : market.totalNoAmount
-            if (side > 0) payout += (b.amount * pool) / side * 0.98
-          } else {
-            losses++
+      await Promise.all(
+        allQuests.map(async (q) => {
+          const claimed = await hasUserClaimed(q.id, address)
+          if (claimed) {
+            totalClaimed++
+            totalEarned += q.payoutPerClaim
           }
-        }
-
-        totalReturns += payout
-        const marketPnL = payout - spent
-
-        cumPnL += marketPnL
-        chartPoints.push({
-          label: `#${marketId}`,
-          value: marketPnL,
-          cumulative: cumPnL,
         })
-      })
+      )
 
-      setPnlData({
-        totalWagered,
-        totalReturns,
-        netPnL: totalReturns - totalWagered,
-        totalMarkets: marketGroups.size,
-        wins,
-        losses,
-        chartPoints,
-      })
+      setQuestStats({ totalClaimed, totalEarned })
     } catch (error) {
-      console.error("Failed to fetch PnL:", error)
+      console.error("Failed to fetch quest stats:", error)
     }
   }, [address])
 
   useEffect(() => {
-    if (isConnected && address) fetchPnL()
-  }, [isConnected, address, fetchPnL])
+    if (isConnected && address) fetchStats()
+  }, [isConnected, address, fetchStats])
 
   const truncateAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`
@@ -138,6 +85,7 @@ export function ProfileTab() {
   const handleRefresh = async () => {
     setIsRefreshing(true)
     await refreshBalances()
+    await fetchStats()
     setIsRefreshing(false)
   }
 
@@ -264,14 +212,22 @@ export function ProfileTab() {
         </div>
       </div>
 
-      {/* Portfolio / PnL Section */}
-      {pnlData.totalMarkets > 0 && (
-        <div className="relative isolate">
-          {/* Subtle multi-color glow layer (light mode only) */}
-          <div className="absolute inset-0 -z-10 rounded-xl bg-gradient-to-r from-blue-400/40 via-purple-400/40 to-transparent blur-xl dark:hidden" />
-          
-          <div className="bg-zinc-900/70 dark:bg-zinc-800/50 backdrop-blur-md rounded-xl p-4 border border-zinc-800 dark:border-zinc-700/50 shadow-inner">
-            <PnlChart data={pnlData.chartPoints} height={180} />
+      {/* Quest Stats */}
+      {questStats.totalClaimed > 0 && (
+        <div className="bg-secondary/60 dark:bg-zinc-800/60 rounded-xl p-4 border border-border dark:border-zinc-700/30">
+          <div className="flex items-center gap-2 mb-3">
+            <Trophy className="h-4 w-4 text-primary" />
+            <p className="text-sm font-medium text-foreground dark:text-white">Quest Activity</p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground dark:text-zinc-500">Quests Completed</p>
+              <p className="text-lg font-bold text-foreground dark:text-white">{questStats.totalClaimed}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground dark:text-zinc-500">Total Earned</p>
+              <p className="text-lg font-bold text-emerald-500">{formatUSDC(questStats.totalEarned)}</p>
+            </div>
           </div>
         </div>
       )}

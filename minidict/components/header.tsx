@@ -102,20 +102,20 @@ export function Header({ activeTab, setActiveTab }: HeaderProps) {
             )}
           >
             <Home className="h-4 w-4" />
-            Predictions
+            Quests
           </button>
 
           <button
-            onClick={() => setActiveTab("bets")}
+            onClick={() => setActiveTab("quests")}
             className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
-              activeTab === "bets"
+              activeTab === "quests"
                 ? "bg-secondary text-foreground dark:bg-white/10 dark:text-white"
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 dark:text-zinc-500 dark:hover:text-zinc-200 dark:hover:bg-white/5",
             )}
           >
             <Trophy className="h-4 w-4" />
-            My Bets
+            My Claims
           </button>
 
           <button
@@ -209,7 +209,7 @@ export function Header({ activeTab, setActiveTab }: HeaderProps) {
               onClick={connect}
               disabled={isConnecting}
               size="sm"
-              className="h-9 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 border-0 shadow-lg shadow-blue-500/25 transition-all duration-300 hover:shadow-blue-500/40 hover:scale-105 active:scale-95"
+              className="h-9 px-4 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 border-0 shadow-lg shadow-blue-500/25 transition-all duration-300 hover:shadow-blue-500/40 hover:scale-105 active:scale-95"
             >
               {isConnecting ? (
                 <div className="flex items-center gap-2">

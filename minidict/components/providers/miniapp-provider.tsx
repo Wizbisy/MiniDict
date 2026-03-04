@@ -312,18 +312,17 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
     }
   }, [isFrameReady])
 
-  const openUrl = useCallback(async (url: string) => {
-    try {
-      const sdk = await import("@farcaster/miniapp-sdk").then((m) => m.sdk).catch(() => null)
-      if (sdk) {
-        await sdk.actions.openUrl(url)
-      } else {
+  const openUrl = useCallback((url: string) => {
+    if (isFarcasterContext) {
+      import("@farcaster/miniapp-sdk").then((m) => m.sdk).then((sdk) => {
+        if (sdk) sdk.actions.openUrl(url)
+      }).catch(() => {
         window.open(url, "_blank")
-      }
-    } catch {
+      })
+    } else {
       window.open(url, "_blank")
     }
-  }, [])
+  }, [isFarcasterContext])
 
   const close = useCallback(async () => {
     try {
