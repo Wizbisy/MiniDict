@@ -107,7 +107,7 @@ export function QuestCard({ quest, userAddress, hasClaimed = false, onClaimed }:
     
     let url = ""
     if (isWarpcast) {
-      url = `https://farcaster.xyz/miniapps/8pY0ZGgsf_2u/minidict/quest/${quest.id}`
+      url = `https://farcaster.xyz/miniapps/juMZP5XiR_Vk/minidict/quest/${quest.id}`
     } else {
       url = `https://base.app/app/testnet.minidict.app/quest/${quest.id}`
     }
