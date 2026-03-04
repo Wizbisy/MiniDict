@@ -5,8 +5,8 @@ const LOGO = `${URL}/images/minidict-logo.png`;
 export const minikitConfig = {
   accountAssociation: {
     header: "eyJmaWQiOjEwNDExMzIsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg5ODQyN2Q1M0MwYjA2MDk1OGQ0MWRhYTI1ZTI0MTcyOGE4ZTMwOWFkIn0",
-    payload: "eyJkb21haW4iOiJtaW5pZGljdC5hcHAifQ",
-    signature: "Nvy2a6cY8VHVXQu2OEMnRm6WhSimOKO36+VysaEbQxZmlYV2BztYNQPM3ZrpBzNO8RuoKUbnhn6a9yZRFzQ/cBw="
+    payload: "eyJkb21haW4iOiJ0ZXN0bmV0Lm1pbmlkaWN0LmFwcCJ9",
+    signature: "Qp1MVTDhk1xsDdeqLZPsz5V6B8zjQZuMzGJ5uVKRFvJHKXpaVOaP83ghxd0JoEM0RJPozgMHOaaeMctIfETgZRw="
   },
   miniapp: {
     version: "1",
