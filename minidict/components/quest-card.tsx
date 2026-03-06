@@ -71,7 +71,7 @@ export function QuestCard({ quest, userAddress, hasClaimed = false, onClaimed }:
   const [copied, setCopied] = useState(false)
   const [actionVerified, setActionVerified] = useState<boolean | null>(null)
   const [verifyReason, setVerifyReason] = useState("")
-  const { openUrl, farcasterUser } = useMiniApp()
+  const { openUrl, farcasterUser, isFarcasterContext } = useMiniApp()
 
   const ActionIcon = actionIcons[quest.actionType]
   const remaining = quest.maxClaims - quest.claimCount
@@ -103,7 +103,7 @@ export function QuestCard({ quest, userAddress, hasClaimed = false, onClaimed }:
   }, [quest.id, userAddress, canClaim, farcasterUser])
 
   const copyQuestLink = async () => {
-    const isWarpcast = window.navigator.userAgent.includes("Farcaster") || !!farcasterUser
+    const isWarpcast = isFarcasterContext
     
     let url = ""
     if (isWarpcast) {
