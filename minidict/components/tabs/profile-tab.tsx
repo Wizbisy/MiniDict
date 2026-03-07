@@ -19,9 +19,11 @@ import { useMiniApp } from "@/components/providers/miniapp-provider"
 import { getAllQuests, hasUserClaimed } from "@/lib/contracts"
 import { formatUSDC } from "@/lib/types"
 import type { Quest } from "@/lib/types"
+import { useToast } from "@/components/ui/use-toast"
 import Image from "next/image"
 
 export function ProfileTab() {
+  const { toast } = useToast()
   const {
     address,
     isConnected,
@@ -107,8 +109,27 @@ export function ProfileTab() {
 
   const handleEnableNotifications = async () => {
     if (isFarcasterContext) {
-      const added = await addFrame()
-      if (added) console.log("Notifications prompted safely!")
+      try {
+        const added = await addFrame()
+        if (added) {
+          toast({
+            title: "Notifications Enabled",
+            description: "You will now receive alerts for new quests!",
+          })
+        } else {
+           toast({
+            variant: "destructive",
+            title: "Already Added",
+            description: "You have already enabled notifications for Minidict.",
+          })
+        }
+      } catch (e: any) {
+        toast({
+          variant: "destructive",
+          title: "Setup Failed",
+          description: e?.message || "Could not enable notifications. Ensure you are using Warpcast.",
+        })
+      }
     } else {
       window.alert("Notifications are native to the Farcaster client. Open this app inside a compatible wallet like Warpcast or Base App to subscribe to notifications.")
     }
