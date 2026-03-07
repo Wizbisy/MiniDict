@@ -88,13 +88,12 @@ export function CreateQuestModal({ onClose, onCreated }: CreateQuestModalProps) 
 
       try {
         const questCount = await getQuestCount()
+        const newQuestId = Math.max(0, questCount - 1)
         fetch("/api/notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            questId: questCount,
-            actionType: ACTION_TYPE_LABELS[actionType],
-            payout: payout
+            questId: newQuestId
           })
         }).catch(err => console.error("Notify API Error:", err))
       } catch (e) {
