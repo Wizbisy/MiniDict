@@ -8,9 +8,10 @@ import {
   RefreshCw,
   LogOut,
   Copy,
-  Check,
   Wallet,
   Trophy,
+  Bell,
+  Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -32,6 +33,7 @@ export function ProfileTab() {
     basename,
     basenameAvatar,
     refreshBalances,
+    sendTransaction,
   } = useMiniApp()
 
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
@@ -102,6 +104,22 @@ export function ProfileTab() {
     setComingSoonOpen(true)
   }
 
+  const handleEnableNotifications = async () => {
+    if (isFarcasterContext) {
+      try {
+        const sdk = await import("@farcaster/miniapp-sdk").then((m) => m.sdk)
+        const result = await sdk.actions.addFrame()
+        if (result) {
+          console.log("Notifications prompted!")
+        }
+      } catch (err) {
+        console.error("Failed to enable notifications:", err)
+      }
+    } else {
+      window.alert("Notifications are native to the Farcaster client. Open this app inside a compatible wallet like Warpcast or Base App to subscribe to notifications.")
+    }
+  }
+
   const handleBaseScan = () => {
     if (address) {
       window.open(`https://sepolia.basescan.org/address/${address}`, "_blank")
@@ -128,7 +146,7 @@ export function ProfileTab() {
           <Button
             onClick={connect}
             size="lg"
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300 hover:scale-[1.02]"
+            className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300 hover:scale-[1.02]"
           >
             Connect Wallet
           </Button>
@@ -140,7 +158,7 @@ export function ProfileTab() {
   return (
     <div className="px-4 py-4 max-w-3xl mx-auto space-y-4">
       {/* Profile Card */}
-      <div className="bg-gradient-to-br from-secondary/80 to-background/80 dark:from-zinc-800/80 dark:to-zinc-900/80 rounded-2xl p-5 border border-border dark:border-zinc-700/50">
+      <div className="bg-linear-to-br from-secondary/80 to-background/80 dark:from-zinc-800/80 dark:to-zinc-900/80 rounded-2xl p-5 border border-border dark:border-zinc-700/50">
         <div className="flex items-start justify-between mb-5">
           <div className="flex items-center gap-4">
             {profilePicture ? (
@@ -150,7 +168,7 @@ export function ProfileTab() {
                 className="h-14 w-14 rounded-full object-cover ring-2 ring-border dark:ring-zinc-700"
               />
             ) : (
-              <div className="h-14 w-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center ring-2 ring-border dark:ring-zinc-700">
+              <div className="h-14 w-14 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center ring-2 ring-border dark:ring-zinc-700">
                 <span className="text-lg font-bold text-white">{address?.slice(2, 4).toUpperCase()}</span>
               </div>
             )}
@@ -234,6 +252,7 @@ export function ProfileTab() {
 
       {/* Menu Items */}
       <div className="space-y-2">
+        <MenuButton icon={Bell} label="Enable Notifications" onClick={handleEnableNotifications} />
         <MenuButton icon={HelpCircle} label="Help & Support" onClick={() => handleComingSoon("Help & Support")} />
         <MenuButton icon={ExternalLink} label="View on Basescan" external onClick={handleBaseScan} />
         {!isFarcasterContext && <MenuButton icon={LogOut} label="Disconnect Wallet" onClick={disconnect} destructive />}

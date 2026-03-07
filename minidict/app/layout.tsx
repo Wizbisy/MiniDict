@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { MiniAppProvider } from "@/components/providers/miniapp-provider";
 import { ModalProvider } from "@/components/providers/modal-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
 const geist = Geist({
@@ -91,6 +92,7 @@ export default function RootLayout({
           </ModalProvider>
         </ThemeProvider>
         <Analytics />
+        <Toaster />
       </body>
     </html>
   );

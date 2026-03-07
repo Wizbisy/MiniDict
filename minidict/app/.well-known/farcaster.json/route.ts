@@ -6,11 +6,12 @@ export async function GET() {
   const ICON = `${URL}/images/minidict.png`
 
   return NextResponse.json({
-    "accountAssociation": {
-    "header": "eyJmaWQiOjEwNDExMzIsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg5ODQyN2Q1M0MwYjA2MDk1OGQ0MWRhYTI1ZTI0MTcyOGE4ZTMwOWFkIn0",
-    "payload": "eyJkb21haW4iOiJ0ZXN0bmV0Lm1pbmlkaWN0LmFwcCJ9",
-    "signature": "Qp1MVTDhk1xsDdeqLZPsz5V6B8zjQZuMzGJ5uVKRFvJHKXpaVOaP83ghxd0JoEM0RJPozgMHOaaeMctIfETgZRw="
+    accountAssociation: {
+      header: "eyJmaWQiOjEwNDExMzIsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg5ODQyN2Q1M0MwYjA2MDk1OGQ0MWRhYTI1ZTI0MTcyOGE4ZTMwOWFkIn0",
+      payload: "eyJkb21haW4iOiJ0ZXN0bmV0Lm1pbmlkaWN0LmFwcCJ9",
+      signature: "Qp1MVTDhk1xsDdeqLZPsz5V6B8zjQZuMzGJ5uVKRFvJHKXpaVOaP83ghxd0JoEM0RJPozgMHOaaeMctIfETgZRw="
     },
+    webhookUrl: `${URL}/api/webhook`,
     miniapp: {
       version: "1",
       name: "Minidict",

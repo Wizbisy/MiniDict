@@ -22,6 +22,10 @@ export const ERC20_ABI = [
   { inputs: [{ name: "account", type: "address" }], name: "balanceOf", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" },
 ] as const
 
+export const QUEST_VAULT_ABI = [
+  { inputs: [{ name: "questId", type: "uint256" }], name: "getQuestBalance", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" }
+] as const
+
 export const CONTRACTS = {
   QUEST_ROUTER: "0x1829acb55fBB8EbEB2e47EAca55a1658B6b51041",
   QUEST_VAULT:  "0x59f298DD1449E35706E87bF93d4b90E4C494BD86",

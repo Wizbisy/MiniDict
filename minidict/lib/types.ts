@@ -19,6 +19,7 @@ export interface Quest {
   claimCount: number
   deadline: number          
   isActive: boolean
+  vaultBalance?: number
 }
 
 export type TabType = "home" | "quests" | "profile"

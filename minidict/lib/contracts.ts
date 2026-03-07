@@ -1,4 +1,5 @@
-import { CONTRACTS, QUEST_ROUTER_ABI, ERC20_ABI, BASE_RPC } from "./contract-abi"
+import { CONTRACTS, QUEST_ROUTER_ABI, ERC20_ABI, BASE_RPC, QUEST_VAULT_ABI } from "./contract-abi"
+import { encodeFunctionData } from "viem"
 import type { Quest } from "./types"
 import { actionTypeFromIndex } from "./types"
 
@@ -148,6 +149,22 @@ export async function getAllQuests(): Promise<Quest[]> {
   }
 }
 
+export async function getQuestVaultBalance(questId: number): Promise<number> {
+  try {
+    const data = encodeFunctionData({
+      abi: QUEST_VAULT_ABI,
+      functionName: "getQuestBalance",
+      args: [BigInt(questId)]
+    })
+    const result = await ethCall(CONTRACTS.QUEST_VAULT, data)
+    if (result === "0x" || result.length < 66) return 0
+    return Number(BigInt(result)) / 1e6
+  } catch (error) {
+    console.error(`Failed to get vault balance for quest ${questId}:`, error)
+    return 0
+  }
+}
+
 export async function getRemainingClaims(questId: number): Promise<number> {
   const data = SEL.getRemainingClaims + encodeUint256(questId)
   const result = await ethCall(CONTRACTS.QUEST_ROUTER, data)
@@ -237,4 +254,26 @@ export function buildClaimRewardTx(questId: number, signature: string): { to: st
   const sel = "0x754685c5" 
   const data = sel + encodeUint256(questId) + offsetToSig + sigLen + sigPadded
   return { to: CONTRACTS.QUEST_ROUTER, data }
+}
+
+export function buildRefundQuestTx(questId: number): { to: string; data: string } {
+  return {
+    to: CONTRACTS.QUEST_ROUTER,
+    data: encodeFunctionData({
+      abi: QUEST_ROUTER_ABI,
+      functionName: "refundQuest",
+      args: [BigInt(questId)]
+    })
+  }
+}
+
+export function buildDeactivateQuestTx(questId: number): { to: string; data: string } {
+  return {
+    to: CONTRACTS.QUEST_ROUTER,
+    data: encodeFunctionData({
+      abi: QUEST_ROUTER_ABI,
+      functionName: "deactivateQuest",
+      args: [BigInt(questId)]
+    })
+  }
 }

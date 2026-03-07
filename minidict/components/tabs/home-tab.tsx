@@ -53,7 +53,7 @@ export function HomeTab() {
   }, [address])
 
   const displayQuests = useMemo(() => {
-    let filtered = [...quests]
+    let filtered = [...quests].filter(q => q.isActive)
 
     if (filterBy !== "all") {
       filtered = filtered.filter((q) => q.actionType === filterBy)
@@ -63,7 +63,6 @@ export function HomeTab() {
       const aClaimed = claimedMap[a.id] ?? false
       const bClaimed = claimedMap[b.id] ?? false
       if (aClaimed !== bClaimed) return aClaimed ? 1 : -1
-      if (a.isActive !== b.isActive) return a.isActive ? -1 : 1
 
       switch (sortBy) {
         case "reward":

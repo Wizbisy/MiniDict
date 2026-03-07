@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useModal } from "./providers/modal-provider"
 import { useMiniApp } from "./providers/miniapp-provider"
-import { buildApproveUSDCTx, buildCreateQuestTx, checkAllowance, getProtocolFeeBps, waitForTxReceipt } from "@/lib/contracts"
+import { buildApproveUSDCTx, buildCreateQuestTx, checkAllowance, getProtocolFeeBps, waitForTxReceipt, getQuestCount } from "@/lib/contracts"
 import { QUEST_ACTION_TYPES, ACTION_TYPE_LABELS, actionTypeToIndex, formatUSDC } from "@/lib/types"
 import type { ActionType } from "@/lib/types"
 
@@ -85,6 +85,22 @@ export function CreateQuestModal({ onClose, onCreated }: CreateQuestModalProps) 
       }
 
       setStep("success")
+
+      try {
+        const questCount = await getQuestCount()
+        fetch("/api/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            questId: questCount,
+            actionType: ACTION_TYPE_LABELS[actionType],
+            payout: payout
+          })
+        }).catch(err => console.error("Notify API Error:", err))
+      } catch (e) {
+        console.error("Failed to push notification", e)
+      }
+
       onCreated?.()
     } catch (err: any) {
       setError(err.message || "Failed to create quest")
