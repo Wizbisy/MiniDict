@@ -12,6 +12,7 @@ import {
   Trophy,
   Bell,
   Check,
+  CheckCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -36,7 +37,8 @@ export function ProfileTab() {
     basenameAvatar,
     refreshBalances,
     sendTransaction,
-    addFrame
+    addFrame,
+    isAdded
   } = useMiniApp()
 
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
@@ -269,7 +271,12 @@ export function ProfileTab() {
 
       {/* Menu Items */}
       <div className="space-y-2">
-        <MenuButton icon={Bell} label="Enable Notifications" onClick={handleEnableNotifications} />
+        <MenuButton 
+          icon={isAdded ? CheckCircle : Bell} 
+          label={isAdded ? "Notifications Enabled" : "Enable Notifications"} 
+          onClick={isAdded ? undefined : handleEnableNotifications} 
+          disabled={isAdded}
+        />
         <MenuButton icon={HelpCircle} label="Help & Support" onClick={() => handleComingSoon("Help & Support")} />
         <MenuButton icon={ExternalLink} label="View on Basescan" external onClick={handleBaseScan} />
         {!isFarcasterContext && <MenuButton icon={LogOut} label="Disconnect Wallet" onClick={disconnect} destructive />}
@@ -302,23 +309,28 @@ function MenuButton({
   external,
   onClick,
   destructive,
+  disabled,
 }: {
   icon: React.ElementType
   label: string
   external?: boolean
   onClick?: () => void
   destructive?: boolean
+  disabled?: boolean
 }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center justify-between px-4 py-3.5 bg-secondary/60 dark:bg-zinc-800/60 rounded-xl hover:bg-secondary/80 dark:hover:bg-zinc-700/60 transition-colors border border-border dark:border-zinc-700/30 ${
-        destructive ? "text-destructive" : ""
-      }`}
+      disabled={disabled}
+      className={`w-full flex items-center justify-between px-4 py-3.5 bg-secondary/60 dark:bg-zinc-800/60 rounded-xl transition-colors border border-border dark:border-zinc-700/30 ${
+        disabled 
+          ? "opacity-60 cursor-default" 
+          : "hover:bg-secondary/80 dark:hover:bg-zinc-700/60"
+      } ${destructive ? "text-destructive" : ""}`}
     >
       <div className="flex items-center gap-3">
-        <Icon className={`h-4 w-4 ${destructive ? "text-destructive" : "text-muted-foreground dark:text-zinc-400"}`} />
-        <span className={`text-sm font-medium ${destructive ? "text-destructive" : "text-foreground dark:text-white"}`}>{label}</span>
+        <Icon className={`h-4 w-4 ${destructive ? "text-destructive" : disabled ? "text-green-500" : "text-muted-foreground dark:text-zinc-400"}`} />
+        <span className={`text-sm font-medium ${destructive ? "text-destructive" : disabled ? "text-foreground dark:text-gray-300" : "text-foreground dark:text-white"}`}>{label}</span>
       </div>
       {external && <ExternalLink className="h-4 w-4 text-muted-foreground dark:text-zinc-500" />}
     </button>

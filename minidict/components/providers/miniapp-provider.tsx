@@ -33,6 +33,7 @@ interface MiniAppContextType extends WalletState {
   farcasterUser: FarcasterUser | null
   isFarcasterContext: boolean
   isFrameReady: boolean
+  isAdded: boolean
   connect: () => Promise<void>
   disconnect: () => void
   switchChain: (chainId: number) => Promise<void>
@@ -72,6 +73,7 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
   const [farcasterUser, setFarcasterUser] = useState<FarcasterUser | null>(null)
   const [isFarcasterContext, setIsFarcasterContext] = useState(false)
   const [isFrameReady, setIsFrameReady] = useState(false)
+  const [isAdded, setIsAdded] = useState(false)
 
   const [walletState, setWalletState] = useState<WalletState>({
     address: null,
@@ -218,6 +220,9 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
               pfpUrl: context.user.pfpUrl,
             })
             setIsFarcasterContext(true)
+            if (context.client?.added) {
+              setIsAdded(true)
+            }
 
             try {
               const provider = await sdk.wallet.getEthereumProvider()
@@ -474,6 +479,7 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
         farcasterUser,
         isFarcasterContext,
         isFrameReady,
+        isAdded,
         connect,
         disconnect,
         switchChain,
