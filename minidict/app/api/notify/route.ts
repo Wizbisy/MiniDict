@@ -12,9 +12,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing questId" }, { status: 400 })
     }
 
-    const quest = await getQuest(questId)
-    if (!quest) {
-      return NextResponse.json({ error: "Quest not found on-chain" }, { status: 404 })
+    let quest: any = null
+    for (let i = 0; i < 4; i++) {
+        quest = await getQuest(questId)
+        if (quest && Number(quest.deadline) > 0) {
+            break;
+        }
+        await new Promise(r => setTimeout(r, 1500))
+    }
+
+    if (!quest || Number(quest.deadline) === 0) {
+      return NextResponse.json({ error: "Quest not found on-chain (RPC sync delayed)" }, { status: 404 })
     }
 
     const redis = await getRedisClient()
