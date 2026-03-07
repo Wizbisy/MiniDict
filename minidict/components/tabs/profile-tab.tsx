@@ -92,10 +92,10 @@ export function ProfileTab() {
   }
 
   const getDisplayName = () => {
-    if (basename) return basename
     if (isFarcasterContext && farcasterUser) {
       return farcasterUser.displayName || farcasterUser.username || truncateAddress(address!)
     }
+    if (basename) return basename
     return truncateAddress(address!)
   }
 
@@ -127,12 +127,14 @@ export function ProfileTab() {
   }
 
   const getProfilePicture = () => {
+    if (isFarcasterContext && farcasterUser?.pfpUrl) return farcasterUser.pfpUrl
     if (basenameAvatar) return basenameAvatar
     if (farcasterUser?.pfpUrl) return farcasterUser.pfpUrl
     return null
   }
 
   const profilePicture = getProfilePicture()
+  const displayName = getDisplayName()
 
   if (!isConnected) {
     return (
