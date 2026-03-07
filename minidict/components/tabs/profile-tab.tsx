@@ -34,6 +34,7 @@ export function ProfileTab() {
     basenameAvatar,
     refreshBalances,
     sendTransaction,
+    addFrame
   } = useMiniApp()
 
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
@@ -106,15 +107,8 @@ export function ProfileTab() {
 
   const handleEnableNotifications = async () => {
     if (isFarcasterContext) {
-      try {
-        const sdk = await import("@farcaster/miniapp-sdk").then((m) => m.sdk)
-        const result = await sdk.actions.addFrame()
-        if (result) {
-          console.log("Notifications prompted!")
-        }
-      } catch (err) {
-        console.error("Failed to enable notifications:", err)
-      }
+      const added = await addFrame()
+      if (added) console.log("Notifications prompted safely!")
     } else {
       window.alert("Notifications are native to the Farcaster client. Open this app inside a compatible wallet like Warpcast or Base App to subscribe to notifications.")
     }

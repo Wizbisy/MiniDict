@@ -41,6 +41,7 @@ interface MiniAppContextType extends WalletState {
   close: () => void
   refreshBalances: () => Promise<void>
   sendTransaction: (to: string, data: string, value: string) => Promise<TransactionResult>
+  addFrame: () => Promise<boolean>
 }
 
 const MiniAppContext = createContext<MiniAppContextType | null>(null)
@@ -64,6 +65,8 @@ const BASE_CHAIN_ID = 84532
 let farcasterProvider: {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
 } | null = null
+
+let farcasterSdkInstance: any = null;
 
 export function MiniAppProvider({ children }: MiniAppProviderProps) {
   const [farcasterUser, setFarcasterUser] = useState<FarcasterUser | null>(null)
@@ -198,11 +201,11 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
     }
     return false
   }, [])
-
   useEffect(() => {
     const initFarcaster = async () => {
       try {
         const sdk = await import("@farcaster/miniapp-sdk").then((m) => m.sdk).catch(() => null)
+        farcasterSdkInstance = sdk;
 
         if (sdk) {
           const context = await sdk.context
@@ -451,6 +454,19 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
     }
   }, [walletState.address])
 
+  const addFrame = useCallback(async () => {
+    if (farcasterSdkInstance) {
+      try {
+        const result = await farcasterSdkInstance.actions.addFrame()
+        return !!result
+      } catch (e) {
+        console.error("Failed to add frame:", e)
+        return false
+      }
+    }
+    return false
+  }, [])
+
   return (
     <MiniAppContext.Provider
       value={{
@@ -466,6 +482,7 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
         close,
         refreshBalances,
         sendTransaction,
+        addFrame,
       }}
     >
       {children}

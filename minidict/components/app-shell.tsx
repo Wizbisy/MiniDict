@@ -14,11 +14,11 @@ import type { TabType } from "@/lib/types"
 export function AppShell() {
   const [activeTab, setActiveTab] = useState<TabType>("home")
   const { isModalOpen } = useModal()
-  const { farcasterUser, basenameAvatar, address } = useMiniApp()
+  const { farcasterUser, basenameAvatar, isFarcasterContext, address } = useMiniApp()
   const [navHidden, setNavHidden] = useState(false)
   const lastScrollY = useRef(0)
 
-  const profilePicture = basenameAvatar || farcasterUser?.pfpUrl || null
+  const profilePicture = isFarcasterContext && farcasterUser?.pfpUrl ? farcasterUser.pfpUrl : (basenameAvatar || farcasterUser?.pfpUrl || null)
 
   useEffect(() => {
     const threshold = 10

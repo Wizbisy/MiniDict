@@ -68,13 +68,14 @@ export function Header({ activeTab, setActiveTab }: HeaderProps) {
   }
 
   const getDisplayName = () => {
+    if (isFarcasterContext && farcasterUser) return farcasterUser.displayName || farcasterUser.username || truncateAddress(address!)
     if (basename) return basename
-    if (farcasterUser?.username) return `@${farcasterUser.username}`
+    if (farcasterUser) return farcasterUser.displayName || farcasterUser.username || truncateAddress(address!)
     if (address) return truncateAddress(address)
     return ""
   }
 
-  const profilePicture = basenameAvatar || farcasterUser?.pfpUrl || null
+  const profilePicture = isFarcasterContext && farcasterUser?.pfpUrl ? farcasterUser.pfpUrl : (basenameAvatar || farcasterUser?.pfpUrl || null)
 
   return (
     <header
