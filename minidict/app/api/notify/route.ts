@@ -23,9 +23,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: "Quest already notified. Skipping." })
     }
 
-    const actionType = actionTypeFromIndex(Number(quest.actionType))
-    const payoutRaw = Number(quest.payoutPerClaim) / 1e6
-    const payout = payoutRaw < 0.01 ? payoutRaw.toFixed(4) : payoutRaw.toFixed(2)
+    const actionType = String(quest.actionType)
+    const payoutVal = Number(quest.payoutPerClaim)
+    const payout = payoutVal < 0.01 ? payoutVal.toFixed(4) : payoutVal.toFixed(2)
+
+    const endFormat = new Date(Number(quest.deadline) * 1000).toLocaleString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      hour: 'numeric', 
+      minute: '2-digit' 
+    })
 
     const rawTokens: string[] = await redis.sMembers("farcaster_notification_tokens") || []
     
@@ -47,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     const title = "New Minidict Quest!"
-    const body = `Earn $${payout} USDC by completing a new ${actionType} quest!`
+    const body = `Earn $${payout} USDC by completing a new ${actionType} quest! Ends ${endFormat}.`
     
     const targetUrl = process.env.PUBLIC_URL
     const promises = []
