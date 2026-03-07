@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { kv } from "@vercel/kv"
+import { getRedisClient } from "@/lib/redis"
 import { parseWebhookEvent, verifyAppKeyWithNeynar } from "@farcaster/miniapp-node"
 
 export async function GET() {
@@ -55,7 +55,8 @@ export async function POST(request: NextRequest) {
     if (eventName === "miniapp_added" || eventName === "notifications_enabled") {
       try {
         console.log("🔔 ATTEMPTING KV SAVE TO 'farcaster_notification_tokens'")
-        await kv.sadd("farcaster_notification_tokens", tokenObject)
+        const redis = await getRedisClient()
+        await redis.sAdd("farcaster_notification_tokens", tokenObject)
         console.log("✅ Secure Farcaster Notification Token added:", token)
       } catch (kvError) {
         console.error("🔴 KV DATABASE ERROR:", kvError)

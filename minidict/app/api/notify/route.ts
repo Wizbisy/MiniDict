@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { kv } from "@vercel/kv"
+import { getRedisClient } from "@/lib/redis"
 
 import { getQuest } from "@/lib/contracts"
 import { actionTypeFromIndex } from "@/lib/types"
@@ -17,8 +17,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Quest not found on-chain" }, { status: 404 })
     }
 
-    const wasAdded = await kv.sadd("notified_quests_set", questId.toString())
-    if (!wasAdded) {
+    const redis = await getRedisClient()
+    const addedCount = await redis.sAdd("notified_quests_set", questId.toString())
+    if (addedCount === 0) {
       return NextResponse.json({ success: true, message: "Quest already notified. Skipping." })
     }
 
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
     const payoutRaw = Number(quest.payoutPerClaim) / 1e6
     const payout = payoutRaw < 0.01 ? payoutRaw.toFixed(4) : payoutRaw.toFixed(2)
 
-    const rawTokens: string[] = await kv.smembers("farcaster_notification_tokens") || []
+    const rawTokens: string[] = await redis.sMembers("farcaster_notification_tokens") || []
     
     if (rawTokens.length === 0) {
       return NextResponse.json({ success: true, message: "No users have opted in to notifications yet." })
