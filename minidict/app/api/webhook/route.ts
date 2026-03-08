@@ -12,17 +12,29 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log("🔔 WEBHOOK BODY:", JSON.stringify(body, null, 2))
     
-    let payloadResult;
+    let event: any;
+    let decodedPayload: any = null;
     try {
-      console.log("🔔 VERIFYING SIGNATURE WITH NEYNAR...")
-      payloadResult = await parseWebhookEvent(body, verifyAppKeyWithNeynar)
-      console.log("🔔 SIGNATURE VERIFIED SUCCESSFULLY!")
-    } catch (e) {
-      console.error("🚫 Invalid Farcaster webhook signature:", e)
-      return NextResponse.json({ error: "Invalid cryptographic signature" }, { status: 401 })
+      const payloadStr = Buffer.from(body.payload, "base64url").toString("utf-8");
+      decodedPayload = JSON.parse(payloadStr);
+      console.log("🔔 DECODED WEBHOOK PAYLOAD:", JSON.stringify(decodedPayload, null, 2));
+    } catch(e) {}
+    
+    // Check if it's the Coinbase Base App structure (bypass Neynar verification)
+    if (decodedPayload?.event?.notificationDetails?.url?.includes("coinbase.com")) {
+      console.log("🔔 DETECTED BASE APP PAYLOAD (Bypassing Neynar Signature Check)")
+      event = decodedPayload.event
+    } else {
+      try {
+        console.log("🔔 VERIFYING SIGNATURE WITH NEYNAR...")
+        const payloadResult = await parseWebhookEvent(body, verifyAppKeyWithNeynar)
+        event = payloadResult.event
+        console.log("🔔 SIGNATURE VERIFIED SUCCESSFULLY!")
+      } catch (e) {
+        console.error("🚫 Invalid Farcaster webhook signature:", e)
+        return NextResponse.json({ error: "Invalid cryptographic signature" }, { status: 401 })
+      }
     }
-
-    const { event } = payloadResult
 
     if (!event || !event.event) {
       return NextResponse.json({ error: "Missing required notification fields" }, { status: 400 })
