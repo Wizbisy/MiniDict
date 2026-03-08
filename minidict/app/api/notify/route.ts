@@ -1,28 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getRedisClient } from "@/lib/redis"
 
-import { getQuest } from "@/lib/contracts"
 import { actionTypeFromIndex } from "@/lib/types"
 
 export async function POST(request: NextRequest) {
   try {
-    const { questId } = await request.json()
+    const { questId, actionType: rawActionType, payout: payoutRaw, deadline } = await request.json()
 
     if (questId === undefined || questId === null) {
       return NextResponse.json({ error: "Missing questId" }, { status: 400 })
-    }
-
-    let quest: any = null
-    for (let i = 0; i < 4; i++) {
-        quest = await getQuest(questId)
-        if (quest && Number(quest.deadline) > 0) {
-            break;
-        }
-        await new Promise(r => setTimeout(r, 1500))
-    }
-
-    if (!quest || Number(quest.deadline) === 0) {
-      return NextResponse.json({ error: "Quest not found on-chain (RPC sync delayed)" }, { status: 404 })
     }
 
     const redis = await getRedisClient()
@@ -31,11 +17,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: "Quest already notified. Skipping." })
     }
 
-    const actionType = String(quest.actionType)
-    const payoutVal = Number(quest.payoutPerClaim)
+    const actionType = String(rawActionType).charAt(0).toUpperCase() + String(rawActionType).slice(1)
+    const payoutVal = Number(payoutRaw)
     const payout = payoutVal < 0.01 ? payoutVal.toFixed(4) : payoutVal.toFixed(2)
 
-    const endFormat = new Date(Number(quest.deadline) * 1000).toLocaleString('en-US', { 
+    const endFormat = new Date(Number(deadline) * 1000).toLocaleString('en-US', { 
       month: 'short', 
       day: 'numeric', 
       hour: 'numeric', 

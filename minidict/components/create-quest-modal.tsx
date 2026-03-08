@@ -93,7 +93,10 @@ export function CreateQuestModal({ onClose, onCreated }: CreateQuestModalProps) 
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            questId: newQuestId
+            questId: newQuestId,
+            actionType: actionType,
+            payout: payout,
+            deadline: deadline
           })
         }).catch(err => console.error("Notify API Error:", err))
       } catch (e) {
