@@ -8,6 +8,7 @@ export const minikitConfig = {
     payload: "eyJkb21haW4iOiJ0ZXN0bmV0Lm1pbmlkaWN0LmFwcCJ9",
     signature: "Qp1MVTDhk1xsDdeqLZPsz5V6B8zjQZuMzGJ5uVKRFvJHKXpaVOaP83ghxd0JoEM0RJPozgMHOaaeMctIfETgZRw="
   },
+  webhookUrl: `${URL}/api/webhook`,
   miniapp: {
     version: "1",
     name: "Minidict",
