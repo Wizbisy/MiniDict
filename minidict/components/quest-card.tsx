@@ -98,9 +98,9 @@ export function QuestCard({ quest, userAddress, hasClaimed = false, onClaimed }:
     
     let url = ""
     if (isWarpcast) {
-      url = `https://farcaster.xyz/miniapps/juMZP5XiR_Vk/minidict/quest/${quest.id}`
+      url = `https://farcaster.xyz/miniapps/1rBFkBxwEIg_/minidict/quest/${quest.id}`
     } else {
-      url = `https://base.app/app/testnet.minidict.app/quest/${quest.id}`
+      url = `https://base.app/app/www.minidict.app/quest/${quest.id}`
     }
     
     await navigator.clipboard.writeText(url)
