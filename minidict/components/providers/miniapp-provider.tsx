@@ -61,7 +61,7 @@ interface MiniAppProviderProps {
   children: ReactNode
 }
 
-const BASE_CHAIN_ID = 84532
+const BASE_CHAIN_ID = 8453
 
 let farcasterProvider: {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
@@ -379,10 +379,10 @@ export function MiniAppProvider({ children }: MiniAppProviderProps) {
               params: [
                 {
                   chainId: `0x${BASE_CHAIN_ID.toString(16)}`,
-                  chainName: "Base Sepolia",
+                  chainName: "Base",
                   nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-                  rpcUrls: ["https://sepolia.base.org"],
-                  blockExplorerUrls: ["https://sepolia.basescan.org"],
+                  rpcUrls: ["https://mainnet.base.org"],
+                  blockExplorerUrls: ["https://basescan.org"],
                 },
               ],
             })

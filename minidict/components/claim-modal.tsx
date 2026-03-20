@@ -7,7 +7,7 @@ import { useModal } from "./providers/modal-provider"
 import { useMiniApp } from "./providers/miniapp-provider"
 import { buildClaimRewardTx } from "@/lib/contracts"
 import { createPublicClient, http } from "viem"
-import { baseSepolia } from "viem/chains"
+import { base } from "viem/chains"
 import type { Quest, ActionType } from "@/lib/types"
 import { formatUSDC, ACTION_TYPE_LABELS, decodeActionMask } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -72,7 +72,7 @@ export function ClaimModal({ quest, userAddress, onClose }: ClaimModalProps) {
       }
 
       const publicClient = createPublicClient({
-        chain: baseSepolia,
+        chain: base,
         transport: http()
       })
 

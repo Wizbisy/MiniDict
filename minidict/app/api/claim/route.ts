@@ -8,7 +8,7 @@ import { decodeActionMask } from "@/lib/types"
 const DOMAIN = {
   name: "MiniDictQuests",
   version: "1",
-  chainId: 84532,
+  chainId: 8453,
   verifyingContract: CONTRACTS.QUEST_ROUTER as `0x${string}`,
 } as const
 
