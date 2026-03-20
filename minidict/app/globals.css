@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Configure Tailwind v4 to use the .dark class for dark mode (compatible with next-themes) */
 @custom-variant dark (&:where(.dark, .dark *));
 
 * {

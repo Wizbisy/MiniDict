@@ -1,4 +1,5 @@
-const { ethers, upgrades } = require("hardhat");
+const hre = require("hardhat");
+const { ethers, upgrades } = hre;
 
 async function main() {
   const [deployer, signer, user] = await ethers.getSigners();
@@ -9,9 +10,13 @@ async function main() {
   let usdcAddress = process.env.USDC_ADDRESS;
   let signerAddress = process.env.SIGNER_ADDRESS;
 
-  if (network.chainId === 84532n) {
-    usdcAddress = usdcAddress || "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
-    signerAddress = signerAddress || "0x7d33eF502BC843d0a12Ec2ADA057Dcc7eFe9ccf2";
+  if (network.chainId === 8453n) {
+    usdcAddress = usdcAddress;
+    signerAddress = signerAddress;
+    console.log("Detecting Base Mainnet... Using specific parameters.");
+  } else if (network.chainId === 84532n) {
+    usdcAddress = usdcAddress;
+    signerAddress = signerAddress;
     console.log("Detecting Base Sepolia... Using specific parameters.");
   }
 
@@ -28,7 +33,7 @@ async function main() {
   if (!signerAddress) {
     signerAddress = signer ? signer.address : deployer.address;
   }
-  const protocolFeeBps = 250;
+  const protocolFeeBps = 10;
 
   const Vault = await ethers.getContractFactory("QuestVaultUpgradeable");
   const vault = await upgrades.deployProxy(Vault, [usdcAddress, adminAddress], { kind: "uups" });
@@ -63,6 +68,28 @@ async function main() {
   const tx = await vault.grantRole(ROUTER_ROLE, routerAddress);
   await tx.wait();
   console.log("Granted ROUTER_ROLE to QuestRouter in QuestVault");
+
+  if (network.chainId !== 31337n && process.env.BASESCAN_API_KEY) {
+    console.log("\nWaiting 6 block confirmations before verifying contracts...");
+    await tx.wait(6);
+
+    async function verifyContract(address, name) {
+      console.log(`Verifying ${name} at ${address}...`);
+      try {
+        await hre.run("verify:verify", { address });
+      } catch (err) {
+        if (err.message.toLowerCase().includes("already verified")) {
+          console.log(`${name} is already verified!`);
+        } else {
+          console.error(`Verification failed for ${name}:`, err.message);
+        }
+      }
+    }
+
+    await verifyContract(vaultAddress, "QuestVault");
+    await verifyContract(routerAddress, "QuestRouter");
+    await verifyContract(registryAddress, "QuestRegistry");
+  }
 
   console.log("\nDeployment Complete!");
   console.log("====================");

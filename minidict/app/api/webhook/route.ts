@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
       console.log("🔔 DECODED WEBHOOK PAYLOAD:", JSON.stringify(decodedPayload, null, 2));
     } catch(e) {}
     
-    // Check if it's the Coinbase Base App structure (bypass Neynar verification)
     if (decodedPayload?.event?.notificationDetails?.url?.includes("coinbase.com")) {
       console.log("🔔 DETECTED BASE APP PAYLOAD (Bypassing Neynar Signature Check)")
       event = decodedPayload.event

@@ -6,7 +6,7 @@ import { QuestCard } from "../quest-card"
 import { CreateQuestModal } from "../create-quest-modal"
 import { getAllQuests, hasUserClaimed } from "@/lib/contracts"
 import { useMiniApp } from "../providers/miniapp-provider"
-import { ACTION_TYPE_LABELS } from "@/lib/types"
+import { ACTION_TYPE_LABELS, decodeActionMask } from "@/lib/types"
 import type { Quest, ActionType } from "@/lib/types"
 
 type SortOption = "newest" | "reward" | "ending"
@@ -20,6 +20,8 @@ export function HomeTab() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [sortBy, setSortBy] = useState<SortOption>("newest")
   const [filterBy, setFilterBy] = useState<FilterOption>("all")
+  const [filterPowerBadge, setFilterPowerBadge] = useState(false)
+  const [filterFollowerReq, setFilterFollowerReq] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const { address } = useMiniApp()
 
@@ -56,7 +58,18 @@ export function HomeTab() {
     let filtered = [...quests].filter(q => q.isActive)
 
     if (filterBy !== "all") {
-      filtered = filtered.filter((q) => q.actionType === filterBy)
+      filtered = filtered.filter((q) => {
+        const actions = decodeActionMask(q.actionMask)
+        return actions.includes(filterBy as ActionType)
+      })
+    }
+
+    if (filterPowerBadge) {
+      filtered = filtered.filter((q) => q.requirePowerBadge)
+    }
+
+    if (filterFollowerReq) {
+      filtered = filtered.filter((q) => q.minFollowers > 0)
     }
 
     filtered.sort((a, b) => {
@@ -76,7 +89,7 @@ export function HomeTab() {
     })
 
     return filtered
-  }, [quests, sortBy, filterBy, claimedMap])
+  }, [quests, sortBy, filterBy, claimedMap, filterPowerBadge, filterFollowerReq])
 
   if (loading) {
     return (
@@ -173,6 +186,33 @@ export function HomeTab() {
                   {ACTION_TYPE_LABELS[type]}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Requirements Filter */}
+          <div className="flex items-center gap-2 pt-2 mt-1 border-t border-border/30">
+            <span className="text-xs text-muted-foreground w-10">Reqs</span>
+            <div className="flex gap-1.5 flex-1 flex-wrap">
+              <button
+                onClick={() => setFilterPowerBadge(!filterPowerBadge)}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                  filterPowerBadge
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                }`}
+              >
+                Farcaster Pro
+              </button>
+              <button
+                onClick={() => setFilterFollowerReq(!filterFollowerReq)}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                  filterFollowerReq
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                }`}
+              >
+                Follower Count
+              </button>
             </div>
           </div>
         </div>

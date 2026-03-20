@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getFidFromAddress, getAddressesForFid, verifyAction } from "@/lib/farcaster"
+import { getFidFromAddress, getAddressesForFid, verifyAction, getUserProfile } from "@/lib/farcaster"
 import { getQuest, hasUserClaimed } from "@/lib/contracts"
+import { decodeActionMask } from "@/lib/types"
 
 
 export async function GET(request: NextRequest) {
@@ -28,6 +29,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ verified: false, reason: "Farcaster account not found for this wallet" })
     }
 
+    if (quest.minFollowers > 0 || quest.requirePowerBadge) {
+      const profile = await getUserProfile(userFid)
+      if (!profile) {
+        return NextResponse.json({ verified: false, reason: "Failed to load Farcaster profile for requirements check" })
+      }
+      if (quest.minFollowers > 0 && profile.followerCount < quest.minFollowers) {
+        return NextResponse.json({ verified: false, reason: `Requires at least ${quest.minFollowers} followers` })
+      }
+      if (quest.requirePowerBadge && !profile.powerBadge) {
+        return NextResponse.json({ verified: false, reason: "Requires Farcaster Power Badge" })
+      }
+    }
+
     const linkedAddresses = await getAddressesForFid(userFid)
     for (const addr of linkedAddresses) {
       const claimed = await hasUserClaimed(parseInt(questId), addr)
@@ -36,8 +50,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const result = await verifyAction(quest.actionType, quest.targetIdentifier, userFid)
-    return NextResponse.json(result)
+    const actions = decodeActionMask(quest.actionMask)
+    let lastResult = { verified: true, reason: "" }
+    for (const action of actions) {
+      const result = await verifyAction(action, quest.targetIdentifier, userFid)
+      if (!result.verified) {
+        return NextResponse.json(result)
+      }
+      lastResult = result
+    }
+    return NextResponse.json(lastResult)
   } catch {
     return NextResponse.json({ verified: false, reason: "Verification check failed" })
   }

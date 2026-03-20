@@ -6,9 +6,9 @@ describe("MiniDict Quest System", function () {
   let usdc, vault, router, registry;
   let admin, signer, creator, user1, user2;
   
-  const MIN_PAYOUT = 10000; // 0.01 USDC
+  const MIN_PAYOUT = 10000; 
   const MAX_CLAIMS = 10;
-  const PROT_FEE_BPS = 250; // 2.5%
+  const PROT_FEE_BPS = 250;
   
   beforeEach(async function () {
     [admin, signer, creator, user1, user2] = await ethers.getSigners();
@@ -67,7 +67,7 @@ describe("MiniDict Quest System", function () {
       await usdc.mint(creator.address, totalCost);
       await usdc.connect(creator).approve(await vault.getAddress(), totalCost);
 
-      const deadline = (await time.latest()) + 86400; // +1 day
+      const deadline = (await time.latest()) + 86400; 
       
       await expect(router.connect(creator).createQuest(
         "castHash123",

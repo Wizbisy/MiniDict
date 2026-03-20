@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { useModal } from "./providers/modal-provider"
 import { useMiniApp } from "./providers/miniapp-provider"
 import { buildApproveUSDCTx, buildCreateQuestTx, checkAllowance, getProtocolFeeBps, waitForTxReceipt, getQuestCount } from "@/lib/contracts"
-import { QUEST_ACTION_TYPES, ACTION_TYPE_LABELS, actionTypeToIndex, formatUSDC } from "@/lib/types"
+import { QUEST_ACTION_TYPES, ACTION_TYPE_LABELS, encodeActionMask, formatUSDC } from "@/lib/types"
 import type { ActionType } from "@/lib/types"
 
 interface CreateQuestModalProps {
@@ -24,10 +24,12 @@ export function CreateQuestModal({ onClose, onCreated }: CreateQuestModalProps) 
   const { sendTransaction, address } = useMiniApp()
 
   const [targetIdentifier, setTargetIdentifier] = useState("")
-  const [actionType, setActionType] = useState<ActionType>("like")
+  const [actionTypes, setActionTypes] = useState<ActionType[]>(["like"])
   const [payoutPerClaim, setPayoutPerClaim] = useState("")
   const [maxClaims, setMaxClaims] = useState("")
   const [durationHours, setDurationHours] = useState("24")
+  const [minFollowers, setMinFollowers] = useState("0")
+  const [requirePowerBadge, setRequirePowerBadge] = useState(false)
 
   const payout = parseFloat(payoutPerClaim) || 0
   const claims = parseInt(maxClaims) || 0
@@ -68,10 +70,12 @@ export function CreateQuestModal({ onClose, onCreated }: CreateQuestModalProps) 
       const deadline = Math.floor(Date.now() / 1000) + parseInt(durationHours) * 3600
       const createTx = buildCreateQuestTx(
         targetIdentifier,
-        actionTypeToIndex(actionType),
+        encodeActionMask(actionTypes),
         payout,
         claims,
-        deadline
+        deadline,
+        parseInt(minFollowers) || 0,
+        requirePowerBadge
       )
       const createResult = await sendTransaction(createTx.to, createTx.data, "0x0")
 
@@ -87,16 +91,11 @@ export function CreateQuestModal({ onClose, onCreated }: CreateQuestModalProps) 
       setStep("success")
 
       try {
-        const questCount = await getQuestCount()
-        const newQuestId = Math.max(0, questCount - 1)
         fetch("/api/notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            questId: newQuestId,
-            actionType: actionType,
-            payout: payout,
-            deadline: deadline
+            txHash: createResult.txHash
           })
         }).catch(err => console.error("Notify API Error:", err))
       } catch (e) {
@@ -141,9 +140,17 @@ export function CreateQuestModal({ onClose, onCreated }: CreateQuestModalProps) 
                 {QUEST_ACTION_TYPES.map((type) => (
                   <button
                     key={type}
-                    onClick={() => setActionType(type)}
+                    onClick={() => {
+                        if (actionTypes.includes(type)) {
+                            if (actionTypes.length > 1) {
+                                setActionTypes(actionTypes.filter(t => t !== type))
+                            }
+                        } else {
+                            setActionTypes([...actionTypes, type])
+                        }
+                    }}
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      actionType === type
+                      actionTypes.includes(type)
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
                     }`}
@@ -157,12 +164,12 @@ export function CreateQuestModal({ onClose, onCreated }: CreateQuestModalProps) 
             {/* Target */}
             <div>
               <label className="text-sm font-medium text-muted-foreground mb-1.5 block">
-                Target {actionType === "follow" ? "(FID or username)" : "(Cast hash or URL)"}
+                Target {actionTypes.includes("follow") && actionTypes.length === 1 ? "(FID or username)" : "(Cast hash or URL)"}
               </label>
               <Input
                 value={targetIdentifier}
                 onChange={(e) => setTargetIdentifier(e.target.value)}
-                placeholder={actionType === "follow" ? "e.g. vitalik.eth" : "e.g. 0xabcd1234..."}
+                placeholder={actionTypes.includes("follow") && actionTypes.length === 1 ? "e.g. vitalik.eth" : "e.g. 0xabcd1234..."}
                 className="bg-secondary/50"
               />
             </div>
@@ -205,6 +212,35 @@ export function CreateQuestModal({ onClose, onCreated }: CreateQuestModalProps) 
                 min="1"
                 className="bg-secondary/50"
               />
+            </div>
+
+            {/* Gating */}
+            <div className="pt-2 border-t border-border">
+              <label className="text-sm font-medium text-muted-foreground mb-3 block">Requirements (Optional)</label>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium flex items-center gap-2">Minimum Followers</span>
+                  <Input
+                    type="number"
+                    value={minFollowers}
+                    onChange={(e) => setMinFollowers(e.target.value)}
+                    placeholder="0"
+                    min="0"
+                    className="w-24 bg-secondary/50 text-right"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Require Farcaster Pro</span>
+                  <button
+                    onClick={() => setRequirePowerBadge(!requirePowerBadge)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${requirePowerBadge ? 'bg-primary' : 'bg-secondary'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${requirePowerBadge ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Cost Summary */}

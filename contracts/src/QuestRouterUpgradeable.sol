@@ -49,12 +49,14 @@ contract QuestRouterUpgradeable is
         uint256 id;
         address creator;
         string targetIdentifier;
-        ActionType actionType;
+        uint8 actionMask;
         uint256 payoutPerClaim;
         uint256 maxClaims;
         uint256 claimCount;
         uint256 deadline;
         bool isActive;
+        uint32 minFollowers;
+        bool requirePowerBadge;
     }
 
     // State
@@ -76,7 +78,7 @@ contract QuestRouterUpgradeable is
     // EIP-712
 
     bytes32 public constant CLAIM_TYPEHASH =
-        keccak256("ClaimReward(uint256 questId,address user,uint256 nonce)");
+        keccak256("ClaimReward(uint256 questId,address user,uint256 nonce,uint256 sigDeadline)");
 
     // Events
 
@@ -84,10 +86,12 @@ contract QuestRouterUpgradeable is
         uint256 indexed questId,
         address indexed creator,
         string targetIdentifier,
-        ActionType actionType,
+        uint8 actionMask,
         uint256 payoutPerClaim,
         uint256 maxClaims,
-        uint256 deadline
+        uint256 deadline,
+        uint32 minFollowers,
+        bool requirePowerBadge
     );
     event RewardClaimed(
         uint256 indexed questId,
@@ -165,17 +169,19 @@ contract QuestRouterUpgradeable is
     /**
      * @notice Fund a new quest. Creator must approve the Vault for the total cost.
      * @param targetIdentifier Off-chain reference (cast hash, FID, etc.)
-     * @param actionType       Required user action
+     * @param actionMask       Bitmask of required actions
      * @param payoutPerClaim   USDC per claim (6 decimals, min 0.01 USDC)
      * @param maxClaims        Max claimers
      * @param deadline         Expiry timestamp
      */
     function createQuest(
         string calldata targetIdentifier,
-        ActionType actionType,
+        uint8 actionMask,
         uint256 payoutPerClaim,
         uint256 maxClaims,
-        uint256 deadline
+        uint256 deadline,
+        uint32 minFollowers,
+        bool requirePowerBadge
     ) external whenNotPaused nonReentrant {
         if (deadline <= block.timestamp) revert InvalidDeadline();
         if (payoutPerClaim < MIN_PAYOUT) revert InvalidPayout();
@@ -193,12 +199,14 @@ contract QuestRouterUpgradeable is
             id: questId,
             creator: msg.sender,
             targetIdentifier: targetIdentifier,
-            actionType: actionType,
+            actionMask: actionMask,
             payoutPerClaim: payoutPerClaim,
             maxClaims: maxClaims,
             claimCount: 0,
             deadline: deadline,
-            isActive: true
+            isActive: true,
+            minFollowers: minFollowers,
+            requirePowerBadge: requirePowerBadge
         });
 
         creatorQuestIds[msg.sender].push(questId);
@@ -214,10 +222,12 @@ contract QuestRouterUpgradeable is
             questId,
             msg.sender,
             targetIdentifier,
-            actionType,
+            actionMask,
             payoutPerClaim,
             maxClaims,
-            deadline
+            deadline,
+            minFollowers,
+            requirePowerBadge
         );
     }
 
@@ -229,6 +239,7 @@ contract QuestRouterUpgradeable is
      */
     function claimReward(
         uint256 questId,
+        uint256 sigDeadline,
         bytes calldata signature
     ) external whenNotPaused nonReentrant {
         Quest storage quest = quests[questId];
@@ -240,9 +251,11 @@ contract QuestRouterUpgradeable is
         if (hasClaimed[questId][msg.sender])
             revert AlreadyClaimed(questId, msg.sender);
 
+        if (block.timestamp > sigDeadline) revert InvalidSignature();
+
         uint256 nonce = claimNonces[msg.sender];
         bytes32 structHash = keccak256(
-            abi.encode(CLAIM_TYPEHASH, questId, msg.sender, nonce)
+            abi.encode(CLAIM_TYPEHASH, questId, msg.sender, nonce, sigDeadline)
         );
         bytes32 digest = _hashTypedDataV4(structHash);
         address signer = ECDSA.recover(digest, signature);

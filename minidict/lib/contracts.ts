@@ -21,7 +21,7 @@ async function ethCall(to: string, data: string): Promise<string> {
 }
 
 
-export async function waitForTxReceipt(txHash: string, maxAttempts = 30): Promise<{ success: boolean; error?: string }> {
+export async function waitForTxReceipt(txHash: string, maxAttempts = 30): Promise<{ success: boolean; error?: string; receipt?: any }> {
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise((r) => setTimeout(r, 2000))
 
@@ -40,7 +40,7 @@ export async function waitForTxReceipt(txHash: string, maxAttempts = 30): Promis
 
       if (result.result) {
         if (result.result.status === "0x1") {
-          return { success: true }
+          return { success: true, receipt: result.result }
         } else {
           return { success: false, error: "Transaction reverted on-chain" }
         }
@@ -104,12 +104,14 @@ export async function getQuest(questId: number): Promise<Quest | null> {
     const id = Number(decodeUint256(hex, t + 0))
     const creator = decodeAddress(hex, t + 64)
     const stringOffsetBytes = Number(decodeUint256(hex, t + 128))
-    const actionType = Number(decodeUint256(hex, t + 192))
+    const actionMask = Number(decodeUint256(hex, t + 192))
     const payoutPerClaimRaw = decodeUint256(hex, t + 256)
     const maxClaims = Number(decodeUint256(hex, t + 320))
     const claimCount = Number(decodeUint256(hex, t + 384))
     const deadline = Number(decodeUint256(hex, t + 448))
     const isActive = decodeBool(hex, t + 512)
+    const minFollowers = Number(decodeUint256(hex, t + 576))
+    const requirePowerBadge = decodeBool(hex, t + 640)
     const stringPos = t + stringOffsetBytes * 2
     const strLen = Number(decodeUint256(hex, stringPos))
     const strHex = hex.slice(stringPos + 64, stringPos + 64 + strLen * 2)
@@ -122,12 +124,14 @@ export async function getQuest(questId: number): Promise<Quest | null> {
       id,
       creator,
       targetIdentifier,
-      actionType: actionTypeFromIndex(actionType),
+      actionMask,
       payoutPerClaim: Number(payoutPerClaimRaw) / 1e6,
       maxClaims,
       claimCount,
       deadline,
       isActive,
+      minFollowers,
+      requirePowerBadge
     }
   } catch (error) {
     console.error(`Failed to get quest ${questId}:`, error)
@@ -226,34 +230,38 @@ export function buildCreateQuestTx(
   actionType: number,
   payoutPerClaim: number,
   maxClaims: number,
-  deadline: number
+  deadline: number,
+  minFollowers: number,
+  requirePowerBadge: boolean
 ): { to: string; data: string } {
   const payoutWei = BigInt(Math.floor(payoutPerClaim * 1e6))
-  const sel = "0x7304b78e"  
-  const offsetToString = encodeUint256(160) 
-  const actionTypeEnc = encodeUint256(actionType)
-  const payoutEnc = encodeUint256(payoutWei)
-  const maxClaimsEnc = encodeUint256(maxClaims)
-  const deadlineEnc = encodeUint256(deadline)
-  const strBytes = new TextEncoder().encode(targetIdentifier)
-  const strLen = encodeUint256(strBytes.length)
-  let strHex = ""
-  for (const b of strBytes) {
-    strHex += b.toString(16).padStart(2, "0")
+  return {
+    to: CONTRACTS.QUEST_ROUTER,
+    data: encodeFunctionData({
+      abi: QUEST_ROUTER_ABI,
+      functionName: "createQuest",
+      args: [
+        targetIdentifier,
+        actionType,
+        payoutWei,
+        BigInt(maxClaims),
+        BigInt(deadline),
+        minFollowers,
+        requirePowerBadge
+      ]
+    })
   }
-  const strPadded = strHex.padEnd(Math.ceil(strHex.length / 64) * 64, "0")
-  const data = sel + offsetToString + actionTypeEnc + payoutEnc + maxClaimsEnc + deadlineEnc + strLen + strPadded
-  return { to: CONTRACTS.QUEST_ROUTER, data }
 }
 
-export function buildClaimRewardTx(questId: number, signature: string): { to: string; data: string } {
-  const sigClean = signature.startsWith("0x") ? signature.slice(2) : signature
-  const offsetToSig = "0000000000000000000000000000000000000000000000000000000000000040" 
-  const sigLen = encodeUint256(sigClean.length / 2)
-  const sigPadded = sigClean.padEnd(Math.ceil(sigClean.length / 64) * 64, "0")
-  const sel = "0x754685c5" 
-  const data = sel + encodeUint256(questId) + offsetToSig + sigLen + sigPadded
-  return { to: CONTRACTS.QUEST_ROUTER, data }
+export function buildClaimRewardTx(questId: number, sigDeadline: number, signature: string): { to: string; data: string } {
+  return {
+    to: CONTRACTS.QUEST_ROUTER,
+    data: encodeFunctionData({
+      abi: QUEST_ROUTER_ABI,
+      functionName: "claimReward",
+      args: [BigInt(questId), BigInt(sigDeadline), signature as `0x${string}`]
+    })
+  }
 }
 
 export function buildRefundQuestTx(questId: number): { to: string; data: string } {

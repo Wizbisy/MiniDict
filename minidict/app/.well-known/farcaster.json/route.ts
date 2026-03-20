@@ -22,7 +22,11 @@ export async function GET() {
       webhookUrl: `${URL}/api/webhook`,
       subtitle: "Proof of Action Quests",
       description: "Complete Farcaster actions and earn USDC rewards on Base. Like, recast, follow, and more to claim your bounty.",
-      screenshotUrls: [],
+      screenshotUrls: [
+        `${URL}/images/Screenshot1.png`,
+        `${URL}/images/Screenshot2.png`,
+        `${URL}/images/Screenshot3.png`
+      ],
       primaryCategory: "social",
       tags: ["quests", "rewards", "farcaster", "base", "usdc"],
       heroImageUrl: LOGO,

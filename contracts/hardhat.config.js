@@ -23,16 +23,17 @@ module.exports = {
   networks: {
     hardhat: {},
     baseSepolia: {
-      url: process.env.BASE_SEPOLIA_RPC || "https://sepolia.base.org",
+      url: process.env.BASE_SEPOLIA_RPC,
       accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
     },
     base: {
-      url: process.env.BASE_RPC || "https://mainnet.base.org",
+      url: process.env.BASE_RPC,
       accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
+      chainId: 8453,
     },
   },
   etherscan: {
-    apiKey: process.env.BASESCAN_API_KEY || "",
+    apiKey: process.env.BASESCAN_API_KEY,
     customChains: [
       {
         network: "baseSepolia",
@@ -40,6 +41,14 @@ module.exports = {
         urls: {
           apiURL: "https://api-sepolia.basescan.org/api",
           browserURL: "https://sepolia.basescan.org"
+        }
+      },
+      {
+        network: "base",
+        chainId: 8453,
+        urls: {
+          apiURL: "https://api.basescan.org/api",
+          browserURL: "https://basescan.org"
         }
       }
     ]

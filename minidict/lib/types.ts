@@ -13,16 +13,37 @@ export interface Quest {
   id: number
   creator: string
   targetIdentifier: string
-  actionType: ActionType
+  actionMask: number
   payoutPerClaim: number    
   maxClaims: number
   claimCount: number
   deadline: number          
   isActive: boolean
+  minFollowers: number
+  requirePowerBadge: boolean
   vaultBalance?: number
 }
 
 export type TabType = "home" | "quests" | "profile"
+
+export function encodeActionMask(actions: ActionType[]): number {
+  let mask = 0;
+  for (const action of actions) {
+    const index = actionTypeToIndex(action);
+    mask |= (1 << index);
+  }
+  return mask;
+}
+
+export function decodeActionMask(mask: number): ActionType[] {
+  const actions: ActionType[] = [];
+  for (let i = 0; i < ACTION_TYPES.length; i++) {
+    if ((mask & (1 << i)) !== 0) {
+      actions.push(ACTION_TYPES[i]);
+    }
+  }
+  return actions;
+}
 
 
 export function actionTypeFromIndex(index: number): ActionType {

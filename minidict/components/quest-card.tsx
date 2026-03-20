@@ -1,10 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Target, Heart, Repeat2, UserPlus, Sparkles, Clock, DollarSign, Users, Share2, Check, ExternalLink, MessageCircle } from "lucide-react"
+import { Target, Heart, Repeat2, UserPlus, Sparkles, Clock, DollarSign, Users, Share2, Check, ExternalLink, MessageCircle, BadgeCheck } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { formatUSDC, formatDeadline, getRemainingClaimsText, ACTION_TYPE_LABELS } from "@/lib/types"
+import { formatUSDC, formatDeadline, getRemainingClaimsText, ACTION_TYPE_LABELS, decodeActionMask } from "@/lib/types"
 import { ClaimModal } from "./claim-modal"
 import { CastPreview } from "./cast-preview"
 import { useMiniApp } from "./providers/miniapp-provider"
@@ -37,7 +37,8 @@ function getTargetUrl(quest: Quest): string | null {
   const target = quest.targetIdentifier.trim()
   if (!target) return null
 
-  if (quest.actionType === "follow") {
+  const actions = decodeActionMask(quest.actionMask)
+  if (actions.length === 1 && actions[0] === "follow") {
     if (target.startsWith("0x") || /^\d+$/.test(target)) {
       return `https://warpcast.com/~/profiles/${target}`
     }
@@ -50,19 +51,9 @@ function getTargetUrl(quest: Quest): string | null {
   return `https://warpcast.com/~/conversations/${hash}`
 }
 
-function getActionVerb(actionType: ActionType): string {
-  switch (actionType) {
-    case "like": return "Like this cast"
-    case "recast": return "Recast this"
-    case "follow": return "Follow this user"
-    case "custom": return "Reply to this cast"
-    case "mint_nft": return "Mint NFT"
-    default: return "Complete action"
-  }
-}
-
-function isCastAction(actionType: ActionType): boolean {
-  return actionType === "like" || actionType === "recast" || actionType === "custom"
+function isCastAction(quest: Quest): boolean {
+  const actions = decodeActionMask(quest.actionMask)
+  return actions.some(a => a === "like" || a === "recast" || a === "custom")
 }
 
 export function QuestCard({ quest, userAddress, hasClaimed = false, onClaimed }: QuestCardProps) {
@@ -73,7 +64,7 @@ export function QuestCard({ quest, userAddress, hasClaimed = false, onClaimed }:
   const [verifyReason, setVerifyReason] = useState("")
   const { openUrl, farcasterUser, isFarcasterContext } = useMiniApp()
 
-  const ActionIcon = actionIcons[quest.actionType]
+  const actions = decodeActionMask(quest.actionMask)
   const remaining = quest.maxClaims - quest.claimCount
   const progress = quest.maxClaims > 0 ? (quest.claimCount / quest.maxClaims) * 100 : 0
   const isExpired = Date.now() / 1000 >= quest.deadline
@@ -126,19 +117,42 @@ export function QuestCard({ quest, userAddress, hasClaimed = false, onClaimed }:
   return (
     <>
       <Card className="p-4 hover:bg-card/80 transition-all duration-200 rounded-xl border-border/50">
-        {/* Quest Header */}
         <div className="flex items-start gap-3 mb-3">
           <div className={cn(
             "h-10 w-10 rounded-xl flex items-center justify-center shrink-0",
-            "bg-linear-to-br from-primary/20 to-primary/5"
-          )}>
-            <ActionIcon className={cn("h-5 w-5", actionColors[quest.actionType])} />
+            "bg-linear-to-br from-primary/20 to-primary/5 cursor-help"
+          )} title={actions.map(a => ACTION_TYPE_LABELS[a]).join(" + ")}>
+            {actions.length === 1 ? (
+              (() => {
+                const Icon = actionIcons[actions[0]]
+                return <Icon className={cn("h-5 w-5", actionColors[actions[0]])} />
+              })()
+            ) : (
+              <div className="flex flex-wrap gap-1 items-center justify-center p-1">
+                {actions.slice(0, 4).map(action => {
+                  const Icon = actionIcons[action]
+                  return <Icon key={action} className={cn("h-3 w-3", actionColors[action])} />
+                })}
+              </div>
+            )}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", actionColors[quest.actionType], "bg-current/10")}>
-                {ACTION_TYPE_LABELS[quest.actionType]}
-              </span>
+            <div className="flex items-center flex-wrap gap-1.5 mb-0.5">
+              {actions.map(action => (
+                <span key={action} className={cn("text-xs font-medium px-2 py-0.5 rounded-full", actionColors[action], "bg-current/10")}>
+                  {ACTION_TYPE_LABELS[action]}
+                </span>
+              ))}
+              {quest.minFollowers > 0 && (
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground flex items-center gap-1">
+                  <Users className="h-3 w-3" /> {quest.minFollowers}+ Followers
+                </span>
+              )}
+              {quest.requirePowerBadge && (
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#8A63D2]/10 text-[#8A63D2] border border-[#8A63D2]/20 shadow-[0_0_8px_rgba(138,99,210,0.15)] flex items-center gap-1">
+                  <BadgeCheck className="h-3 w-3" /> Farcaster Pro
+                </span>
+              )}
             </div>
             <p className="text-sm font-semibold text-foreground">
               Earn {formatUSDC(quest.payoutPerClaim)} per claim
@@ -158,14 +172,14 @@ export function QuestCard({ quest, userAddress, hasClaimed = false, onClaimed }:
         </div>
 
         {/* Embedded Cast Preview (for like/recast quests) */}
-        {isCastAction(quest.actionType) && (
+        {isCastAction(quest) && (
           <div className="mb-3">
             <CastPreview castHash={quest.targetIdentifier} />
           </div>
         )}
 
         {/* Follow target (for follow quests) */}
-        {quest.actionType === "follow" && (
+        {actions.length === 1 && actions[0] === "follow" && (
           <div className="mb-3 bg-secondary/40 rounded-lg p-3">
             <p className="text-sm text-muted-foreground">Follow target:</p>
             <p className="text-sm font-medium font-mono">{quest.targetIdentifier}</p>
@@ -179,7 +193,7 @@ export function QuestCard({ quest, userAddress, hasClaimed = false, onClaimed }:
             className="flex items-center justify-center gap-2 w-full p-2.5 mb-3 rounded-lg bg-secondary/70 hover:bg-secondary transition-all text-sm font-medium text-foreground hover:scale-[1.01] active:scale-[0.99]"
           >
             <ExternalLink className="h-4 w-4" />
-            {getActionVerb(quest.actionType)}
+            {actions.length > 1 ? "Complete Required Actions" : "Complete Action"}
           </button>
         )}
 

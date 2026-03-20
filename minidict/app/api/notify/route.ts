@@ -1,15 +1,41 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getRedisClient } from "@/lib/redis"
 
-import { actionTypeFromIndex } from "@/lib/types"
+import { decodeActionMask } from "@/lib/types"
+import { waitForTxReceipt } from "@/lib/contracts"
+import { decodeEventLog } from "viem"
+import { QUEST_ROUTER_ABI } from "@/lib/contract-abi"
 
 export async function POST(request: NextRequest) {
   try {
-    const { questId, actionType: rawActionType, payout: payoutRaw, deadline } = await request.json()
+    const { txHash } = await request.json()
 
-    if (questId === undefined || questId === null) {
-      return NextResponse.json({ error: "Missing questId" }, { status: 400 })
+    if (!txHash) {
+      return NextResponse.json({ error: "Missing txHash" }, { status: 400 })
     }
+
+    const txStatus = await waitForTxReceipt(txHash)
+    if (!txStatus.success || !txStatus.receipt) {
+      return NextResponse.json({ error: "Transaction not confirmed on-chain" }, { status: 400 })
+    }
+
+    let questCreatedEvent: any = null;
+    for (const log of txStatus.receipt.logs) {
+      try {
+        const decoded = decodeEventLog({ abi: QUEST_ROUTER_ABI, data: log.data, topics: log.topics });
+        if (decoded.eventName === "QuestCreated") questCreatedEvent = decoded.args;
+      } catch (e) {}
+    }
+
+    if (!questCreatedEvent) {
+      return NextResponse.json({ error: "Not a valid Quest Creation transaction" }, { status: 400 })
+    }
+
+    const questId = Number(questCreatedEvent.questId)
+    const rawActionMask = Number(questCreatedEvent.actionMask)
+    const actions = decodeActionMask(rawActionMask)
+    const payoutRaw = Number(questCreatedEvent.payoutPerClaim)
+    const deadline = Number(questCreatedEvent.deadline)
 
     const redis = await getRedisClient()
     const addedCount = await redis.sAdd("notified_quests_set", questId.toString())
@@ -17,8 +43,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: "Quest already notified. Skipping." })
     }
 
-    const actionType = String(rawActionType).charAt(0).toUpperCase() + String(rawActionType).slice(1)
-    const payoutVal = Number(payoutRaw)
+    const actionTypesLabel = actions.map(a => String(a).charAt(0).toUpperCase() + String(a).slice(1)).join(" + ")
+    const payoutVal = payoutRaw / 1e6;
     const payout = payoutVal < 0.01 ? payoutVal.toFixed(4) : payoutVal.toFixed(2)
 
     const endFormat = new Date(Number(deadline) * 1000).toLocaleString('en-US', { 
@@ -48,7 +74,7 @@ export async function POST(request: NextRequest) {
     }
 
     const title = "New Minidict Quest!"
-    const body = `Earn $${payout} USDC by completing a new ${actionType} quest! Ends ${endFormat}.`
+    const body = `Earn $${payout} USDC by completing a new ${actionTypesLabel} quest! Ends ${endFormat}.`
     
     const targetUrl = process.env.PUBLIC_URL
     const promises = []

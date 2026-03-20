@@ -33,6 +33,29 @@ export async function getFidFromAddress(address: string): Promise<number | null>
 }
 
 
+export async function getUserProfile(fid: number): Promise<{ followerCount: number, powerBadge: boolean } | null> {
+  if (!NEYNAR_API_KEY) return null
+
+  try {
+    const res = await fetch(
+      `${NEYNAR_BASE}/farcaster/user/bulk?fids=${fid}`,
+      { headers: { accept: "application/json", api_key: NEYNAR_API_KEY } }
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    const user = data?.users?.[0]
+    if (!user) return null
+    
+    return {
+      followerCount: user.follower_count || 0,
+      powerBadge: !!user.power_badge
+    }
+  } catch {
+    return null
+  }
+}
+
+
 export async function getAddressesForFid(fid: number): Promise<string[]> {
   if (!NEYNAR_API_KEY) return []
 
@@ -140,7 +163,17 @@ async function verifyFollow(
     let targetFid: number | null = null
     const trimmed = targetIdentifier.trim()
 
-    if (/^\d+$/.test(trimmed)) {
+    const isHash = extractCastHash(trimmed)
+    if (isHash) {
+      const res = await fetch(
+        `${NEYNAR_BASE}/farcaster/cast?identifier=${isHash}&type=hash`,
+        { headers: { accept: "application/json", api_key: NEYNAR_API_KEY } }
+      )
+      if (res.ok) {
+        const data = await res.json()
+        targetFid = data?.cast?.author?.fid || null
+      }
+    } else if (/^\d+$/.test(trimmed)) {
       targetFid = parseInt(trimmed)
     } else {
       const username = trimmed.replace(/^@/, "")

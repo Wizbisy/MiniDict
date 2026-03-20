@@ -9,7 +9,7 @@ import { buildClaimRewardTx } from "@/lib/contracts"
 import { createPublicClient, http } from "viem"
 import { baseSepolia } from "viem/chains"
 import type { Quest, ActionType } from "@/lib/types"
-import { formatUSDC, ACTION_TYPE_LABELS } from "@/lib/types"
+import { formatUSDC, ACTION_TYPE_LABELS, decodeActionMask } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 const actionIcons: Record<ActionType, typeof Heart> = {
@@ -61,10 +61,10 @@ export function ClaimModal({ quest, userAddress, onClose }: ClaimModalProps) {
         throw new Error(data.error || "Failed to get claim signature")
       }
 
-      const { signature } = await response.json()
+      const { signature, sigDeadline } = await response.json()
 
       setStep("submitting")
-      const tx = buildClaimRewardTx(quest.id, signature)
+      const tx = buildClaimRewardTx(quest.id, sigDeadline, signature)
       const result = await sendTransaction(tx.to, tx.data, "0x0")
 
       if (!result.success || !result.txHash) {
@@ -117,16 +117,20 @@ export function ClaimModal({ quest, userAddress, onClose }: ClaimModalProps) {
           <div className="space-y-4">
             <div className="bg-secondary/50 rounded-xl p-4 space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="h-10 w-10 rounded-xl bg-linear-to-br from-primary/20 to-primary/5 flex items-center justify-center shrink-0">
-                    {(() => {
-                      const Icon = actionIcons[quest.actionType]
-                      return <Icon className={cn("h-5 w-5", actionColors[quest.actionType])} />
-                    })()}
+                <div className="flex flex-col gap-2">
+                  <span className="text-muted-foreground">Required Actions</span>
+                  <div className="flex items-center flex-wrap gap-2">
+                    {decodeActionMask(quest.actionMask).map((action) => {
+                      const Icon = actionIcons[action]
+                      return (
+                        <div key={action} className="flex items-center gap-1.5 bg-secondary/50 rounded-lg px-2 py-1">
+                          <Icon className={cn("h-4 w-4", actionColors[action])} />
+                          <span className="font-medium text-xs">{ACTION_TYPE_LABELS[action]}</span>
+                        </div>
+                      )
+                    })}
                   </div>
-                  <span className="text-muted-foreground">Action</span>
                 </div>
-                <span className="font-medium">{ACTION_TYPE_LABELS[quest.actionType]}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Target</span>

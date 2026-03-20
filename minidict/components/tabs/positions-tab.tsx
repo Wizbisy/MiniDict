@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import { useMiniApp } from "../providers/miniapp-provider"
 import { getAllQuests, hasUserClaimed, buildRefundQuestTx, waitForTxReceipt, getQuestVaultBalance } from "@/lib/contracts"
-import { formatUSDC, ACTION_TYPE_LABELS, formatDeadline } from "@/lib/types"
+import { formatUSDC, ACTION_TYPE_LABELS, formatDeadline, decodeActionMask } from "@/lib/types"
 import { CastPreview } from "../cast-preview"
 import type { Quest, ActionType } from "@/lib/types"
 
@@ -125,7 +125,7 @@ export function BetsTab() {
                 <div key={q.id} className="bg-background/50 dark:bg-zinc-900/50 p-3 rounded-lg flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-foreground dark:text-white">
-                      Action: {ACTION_TYPE_LABELS[q.actionType]}
+                      Action: {decodeActionMask(q.actionMask).map(a => ACTION_TYPE_LABELS[a]).join(", ")}
                     </p>
                     <p className="text-xs text-muted-foreground dark:text-zinc-500 mt-1">
                       {q.claimCount} / {q.maxClaims} claims
@@ -182,7 +182,7 @@ export function BetsTab() {
                   </div>
                   <div>
                     <p className="text-sm font-medium">
-                      {ACTION_TYPE_LABELS[quest.actionType]} Quest #{quest.id}
+                      {decodeActionMask(quest.actionMask).map(a => ACTION_TYPE_LABELS[a]).join(", ")} Quest #{quest.id}
                     </p>
                   </div>
                 </div>
@@ -195,12 +195,12 @@ export function BetsTab() {
               </div>
 
               {/* Embedded cast preview for cast-based quests */}
-              {isCastAction(quest.actionType) && (
+              {decodeActionMask(quest.actionMask).some(isCastAction) && (
                 <CastPreview castHash={quest.targetIdentifier} />
               )}
 
               {/* Target for follow quests */}
-              {quest.actionType === "follow" && (
+              {decodeActionMask(quest.actionMask).includes("follow") && (
                 <div className="bg-secondary/40 rounded-lg p-3">
                   <p className="text-xs text-muted-foreground">Followed:</p>
                   <p className="text-sm font-medium font-mono">{quest.targetIdentifier}</p>

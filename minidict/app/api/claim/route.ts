@@ -2,8 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { privateKeyToAccount } from "viem/accounts"
 import { CONTRACTS } from "@/lib/contract-abi"
 import { getUserNonce, hasUserClaimed, getQuest } from "@/lib/contracts"
-import { getFidFromAddress, getAddressesForFid, verifyAction } from "@/lib/farcaster"
-import { actionTypeFromIndex, ACTION_TYPES } from "@/lib/types"
+import { getFidFromAddress, getAddressesForFid, verifyAction, getUserProfile } from "@/lib/farcaster"
+import { decodeActionMask } from "@/lib/types"
 
 const DOMAIN = {
   name: "MiniDictQuests",
@@ -17,6 +17,7 @@ const CLAIM_TYPES = {
     { name: "questId", type: "uint256" },
     { name: "user", type: "address" },
     { name: "nonce", type: "uint256" },
+    { name: "sigDeadline", type: "uint256" },
   ],
 } as const
 
@@ -85,6 +86,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (quest.minFollowers > 0 || quest.requirePowerBadge) {
+      const profile = await getUserProfile(userFid)
+      if (!profile) {
+        return NextResponse.json(
+          { error: "Failed to load Farcaster profile for requirements check" },
+          { status: 400 }
+        )
+      }
+      if (quest.minFollowers > 0 && profile.followerCount < quest.minFollowers) {
+        return NextResponse.json(
+          { error: `This quest requires at least ${quest.minFollowers} followers` },
+          { status: 403 }
+        )
+      }
+      if (quest.requirePowerBadge && !profile.powerBadge) {
+        return NextResponse.json(
+          { error: "This quest requires a Farcaster Power Badge (Verified)" },
+          { status: 403 }
+        )
+      }
+    }
+
     const linkedAddresses = await getAddressesForFid(userFid)
     for (const addr of linkedAddresses) {
       const claimed = await hasUserClaimed(questId, addr)
@@ -104,16 +127,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const actionType = quest.actionType
-    const verification = await verifyAction(actionType, quest.targetIdentifier, userFid)
-    if (!verification.verified) {
-      return NextResponse.json(
-        { error: verification.reason },
-        { status: 400 }
-      )
+    const actions = decodeActionMask(quest.actionMask)
+    for (const action of actions) {
+      const verification = await verifyAction(action, quest.targetIdentifier, userFid)
+      if (!verification.verified) {
+        return NextResponse.json(
+          { error: verification.reason },
+          { status: 400 }
+        )
+      }
     }
 
     const nonce = await getUserNonce(userAddress)
+    const sigDeadline = Math.floor(Date.now() / 1000) + 3600
     const account = privateKeyToAccount(signerKey as `0x${string}`)
     const signature = await account.signTypedData({
       domain: DOMAIN,
@@ -123,12 +149,14 @@ export async function POST(request: NextRequest) {
         questId: BigInt(questId),
         user: userAddress as `0x${string}`,
         nonce: BigInt(nonce),
+        sigDeadline: BigInt(sigDeadline),
       },
     })
 
     return NextResponse.json({
       signature,
       nonce,
+      sigDeadline,
       questId,
       userAddress,
     })
