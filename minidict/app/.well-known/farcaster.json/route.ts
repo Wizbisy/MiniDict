@@ -8,8 +8,8 @@ export async function GET() {
   return NextResponse.json({
     accountAssociation: {
       header: "eyJmaWQiOjEwNDExMzIsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg5ODQyN2Q1M0MwYjA2MDk1OGQ0MWRhYTI1ZTI0MTcyOGE4ZTMwOWFkIn0",
-      payload: "eyJkb21haW4iOiJ0ZXN0bmV0Lm1pbmlkaWN0LmFwcCJ9",
-      signature: "Qp1MVTDhk1xsDdeqLZPsz5V6B8zjQZuMzGJ5uVKRFvJHKXpaVOaP83ghxd0JoEM0RJPozgMHOaaeMctIfETgZRw="
+      payload: "eyJkb21haW4iOiJ3d3cubWluaWRpY3QuYXBwIn0",
+      signature: "5KbJKjIm81eMI23tcpL63nKXGk7s2KG4eEfamgSJ0M9jdJm8Dhst1Bd8ONkgwuVEEsYsSQR4B2rYG28PB1LC+hw="
     },
     webhookUrl: `${URL}/api/webhook`,
     miniapp: {
