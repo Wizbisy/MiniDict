@@ -109,7 +109,11 @@ export async function POST(request: NextRequest) {
     }
 
     const linkedAddresses = await getAddressesForFid(userFid)
-    for (const addr of linkedAddresses) {
+    const addressesToCheck = Array.from(
+      new Set([...linkedAddresses.map((a) => a.toLowerCase()), userAddress.toLowerCase()])
+    )
+
+    for (const addr of addressesToCheck) {
       const claimed = await hasUserClaimed(questId, addr)
       if (claimed) {
         return NextResponse.json(
@@ -117,14 +121,6 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
-    }
-
-    const alreadyClaimed = await hasUserClaimed(questId, userAddress)
-    if (alreadyClaimed) {
-      return NextResponse.json(
-        { error: "You have already claimed this quest reward" },
-        { status: 400 }
-      )
     }
 
     const actions = decodeActionMask(quest.actionMask)

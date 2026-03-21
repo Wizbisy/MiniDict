@@ -5,19 +5,35 @@ import { actionTypeFromIndex } from "./types"
 
 
 async function ethCall(to: string, data: string): Promise<string> {
-  const response = await fetch(BASE_RPC, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "eth_call",
-      params: [{ to, data }, "latest"],
-    }),
-  })
-  const result = await response.json()
-  if (result.error) throw new Error(result.error.message || "eth_call failed")
-  return result.result || "0x"
+  const maxAttempts = 4
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const response = await fetch(BASE_RPC, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "eth_call",
+        params: [{ to, data }, "latest"],
+      }),
+    })
+
+    const result = await response.json()
+    if (!result.error) return result.result || "0x"
+
+    const message = String(result.error?.message || "eth_call failed")
+    const isRateLimited = /rate limit|too many requests|429/i.test(message)
+
+    if (!isRateLimited || attempt === maxAttempts) {
+      throw new Error(message)
+    }
+
+    // Exponential backoff to smooth transient RPC throttling.
+    await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** (attempt - 1)))
+  }
+
+  throw new Error("eth_call failed")
 }
 
 
@@ -94,48 +110,43 @@ export async function getQuestCount(): Promise<number> {
 }
 
 export async function getQuest(questId: number): Promise<Quest | null> {
-  try {
-    const data = SEL.getQuest + encodeUint256(questId)
-    const result = await ethCall(CONTRACTS.QUEST_ROUTER, data)
-    if (result === "0x" || result.length < 66) return null
-    const hex = result.slice(2)
-    const tupleOffset = Number(decodeUint256(hex, 0))
-    const t = tupleOffset * 2
-    const id = Number(decodeUint256(hex, t + 0))
-    const creator = decodeAddress(hex, t + 64)
-    const stringOffsetBytes = Number(decodeUint256(hex, t + 128))
-    const actionMask = Number(decodeUint256(hex, t + 192))
-    const payoutPerClaimRaw = decodeUint256(hex, t + 256)
-    const maxClaims = Number(decodeUint256(hex, t + 320))
-    const claimCount = Number(decodeUint256(hex, t + 384))
-    const deadline = Number(decodeUint256(hex, t + 448))
-    const isActive = decodeBool(hex, t + 512)
-    const minFollowers = Number(decodeUint256(hex, t + 576))
-    const requirePowerBadge = decodeBool(hex, t + 640)
-    const stringPos = t + stringOffsetBytes * 2
-    const strLen = Number(decodeUint256(hex, stringPos))
-    const strHex = hex.slice(stringPos + 64, stringPos + 64 + strLen * 2)
-    let targetIdentifier = ""
-    for (let i = 0; i < strHex.length; i += 2) {
-      targetIdentifier += String.fromCharCode(parseInt(strHex.slice(i, i + 2), 16))
-    }
+  const data = SEL.getQuest + encodeUint256(questId)
+  const result = await ethCall(CONTRACTS.QUEST_ROUTER, data)
+  if (result === "0x" || result.length < 66) return null
+  const hex = result.slice(2)
+  const tupleOffset = Number(decodeUint256(hex, 0))
+  const t = tupleOffset * 2
+  const id = Number(decodeUint256(hex, t + 0))
+  const creator = decodeAddress(hex, t + 64)
+  const stringOffsetBytes = Number(decodeUint256(hex, t + 128))
+  const actionMask = Number(decodeUint256(hex, t + 192))
+  const payoutPerClaimRaw = decodeUint256(hex, t + 256)
+  const maxClaims = Number(decodeUint256(hex, t + 320))
+  const claimCount = Number(decodeUint256(hex, t + 384))
+  const deadline = Number(decodeUint256(hex, t + 448))
+  const isActive = decodeBool(hex, t + 512)
+  const minFollowers = Number(decodeUint256(hex, t + 576))
+  const requirePowerBadge = decodeBool(hex, t + 640)
+  const stringPos = t + stringOffsetBytes * 2
+  const strLen = Number(decodeUint256(hex, stringPos))
+  const strHex = hex.slice(stringPos + 64, stringPos + 64 + strLen * 2)
+  let targetIdentifier = ""
+  for (let i = 0; i < strHex.length; i += 2) {
+    targetIdentifier += String.fromCharCode(parseInt(strHex.slice(i, i + 2), 16))
+  }
 
-    return {
-      id,
-      creator,
-      targetIdentifier,
-      actionMask,
-      payoutPerClaim: Number(payoutPerClaimRaw) / 1e6,
-      maxClaims,
-      claimCount,
-      deadline,
-      isActive,
-      minFollowers,
-      requirePowerBadge
-    }
-  } catch (error) {
-    console.error(`Failed to get quest ${questId}:`, error)
-    return null
+  return {
+    id,
+    creator,
+    targetIdentifier,
+    actionMask,
+    payoutPerClaim: Number(payoutPerClaimRaw) / 1e6,
+    maxClaims,
+    claimCount,
+    deadline,
+    isActive,
+    minFollowers,
+    requirePowerBadge
   }
 }
 
