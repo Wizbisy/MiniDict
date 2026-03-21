@@ -20,13 +20,15 @@ export async function getFidFromAddress(address: string): Promise<number | null>
   if (!NEYNAR_API_KEY) return null
 
   try {
+    const normalizedAddress = address.toLowerCase()
     const res = await fetch(
-      `${NEYNAR_BASE}/farcaster/user/by_verification?address=${address.toLowerCase()}`,
+      `${NEYNAR_BASE}/farcaster/user/bulk-by-address?addresses=${normalizedAddress}`,
       { headers: { accept: "application/json", api_key: NEYNAR_API_KEY } }
     )
     if (!res.ok) return null
     const data = await res.json()
-    return data?.user?.fid || null
+    const users = data?.[normalizedAddress]
+    return users?.[0]?.fid || null
   } catch {
     return null
   }
@@ -83,28 +85,118 @@ export async function getAddressesForFid(fid: number): Promise<string[]> {
 }
 
 
+export async function verifyMultipleActions(
+  actions: string[],
+  targetIdentifier: string,
+  userFid: number
+): Promise<{ verified: boolean; reason: string }> {
+  console.log(`Verifying multiple actions: ${actions.join(", ")} for target: ${targetIdentifier} and user: ${userFid}`);
+
+  if (!NEYNAR_API_KEY) {
+    console.warn("NEYNAR_API_KEY not set — skipping action verification");
+    return { verified: true, reason: "Verification skipped (dev mode)" };
+  }
+
+  try {
+    const trimmedTarget = targetIdentifier.trim();
+    const hash = extractCastHash(trimmedTarget);
+    
+    let cast: any = null;
+    let targetFid: number | null = null;
+
+    if (hash) {
+      console.log(`Target identified as cast hash: ${hash}. Fetching cast details...`);
+      const url = `${NEYNAR_BASE}/farcaster/cast?identifier=${hash}&type=hash&viewer_fid=${userFid}`;
+      const res = await fetch(url, { headers: { accept: "application/json", api_key: NEYNAR_API_KEY } });
+      if (res.ok) {
+        const data = await res.json();
+        cast = data.cast;
+        targetFid = cast?.author?.fid || null;
+      } else {
+        const err = await res.json().catch(() => ({}));
+        console.warn(`Failed to fetch cast ${hash}:`, res.status, err);
+      }
+    } else if (/^\d+$/.test(trimmedTarget)) {
+      targetFid = parseInt(trimmedTarget);
+    } else if (trimmedTarget.startsWith("0x")) {
+      targetFid = await getFidFromAddress(trimmedTarget);
+    } else {
+      const username = trimmedTarget.replace(/^@/, "");
+      const res = await fetch(
+        `${NEYNAR_BASE}/farcaster/user/by_username?username=${username}`,
+        { headers: { accept: "application/json", api_key: NEYNAR_API_KEY } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        targetFid = data?.user?.fid || null;
+      }
+    }
+
+    for (const action of actions) {
+      console.log(`Checking action: ${action}`);
+      
+      if (action === "like") {
+        if (!cast) return { verified: false, reason: "Like action requires a valid cast hash" };
+        const liked = cast.viewer_context?.liked === true;
+        if (!liked) return { verified: false, reason: "You need to like the cast first" };
+      } 
+      else if (action === "recast") {
+        if (!cast) return { verified: false, reason: "Recast action requires a valid cast hash" };
+        const recasted = cast.viewer_context?.recasted === true;
+        if (!recasted) return { verified: false, reason: "You need to recast the cast first" };
+      }
+      else if (action === "follow") {
+        if (!targetFid) return { verified: false, reason: "Follow action requires a valid user or author" };
+        const res = await fetch(
+          `${NEYNAR_BASE}/farcaster/user/bulk?fids=${targetFid}&viewer_fid=${userFid}`,
+          { headers: { accept: "application/json", api_key: NEYNAR_API_KEY } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const user = data?.users?.[0];
+          const following = user?.viewer_context?.following === true;
+          if (!following) return { verified: false, reason: `You need to follow FID ${targetFid} first` };
+        } else {
+          return { verified: false, reason: "Could not verify follow status" };
+        }
+      }
+      else if (action === "custom" || action === "reply") {
+        if (!hash) return { verified: false, reason: "Reply action requires a valid cast hash" };
+        // Free-tier compatible reply verification: check user's recent casts and look for a reply parent hash.
+        const res = await fetch(
+          `${NEYNAR_BASE}/farcaster/feed/user/casts?fid=${userFid}&limit=100&include_replies=true`,
+          { headers: { accept: "application/json", api_key: NEYNAR_API_KEY } }
+        );
+        if (!res.ok) {
+          return { verified: false, reason: "Could not verify reply status" };
+        }
+
+        const data = await res.json();
+        const casts = data?.casts || [];
+        const normalizedHash = hash.toLowerCase();
+        const replied = casts.some((c: any) => {
+          const parentHash = (c?.parent_hash || "").toLowerCase();
+          const threadHash = (c?.thread_hash || "").toLowerCase();
+          return parentHash === normalizedHash || threadHash === normalizedHash;
+        });
+
+        if (!replied) return { verified: false, reason: "You need to reply to the cast first" };
+      }
+    }
+
+    return { verified: true, reason: "All actions verified" };
+  } catch (err) {
+    console.error("verifyMultipleActions exception:", err);
+    return { verified: false, reason: "Verification logic error" };
+  }
+}
+
 export async function verifyAction(
   actionType: string,
   targetIdentifier: string,
   userFid: number
 ): Promise<{ verified: boolean; reason: string }> {
-  if (!NEYNAR_API_KEY) {
-    console.warn("NEYNAR_API_KEY not set — skipping action verification")
-    return { verified: true, reason: "Verification skipped (dev mode)" }
-  }
-
-  switch (actionType) {
-    case "like":
-      return verifyLiked(targetIdentifier, userFid)
-    case "recast":
-      return verifyRecasted(targetIdentifier, userFid)
-    case "follow":
-      return verifyFollow(targetIdentifier, userFid)
-    case "custom": 
-      return verifyReplied(targetIdentifier, userFid)
-    default:
-      return { verified: true, reason: "No verification for this action type" }
-  }
+  return verifyMultipleActions([actionType], targetIdentifier, userFid);
 }
 
 async function verifyLiked(

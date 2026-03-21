@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { privateKeyToAccount } from "viem/accounts"
 import { CONTRACTS } from "@/lib/contract-abi"
 import { getUserNonce, hasUserClaimed, getQuest } from "@/lib/contracts"
-import { getFidFromAddress, getAddressesForFid, verifyAction, getUserProfile } from "@/lib/farcaster"
+import { getFidFromAddress, getAddressesForFid, verifyAction, getUserProfile, verifyMultipleActions } from "@/lib/farcaster"
 import { decodeActionMask } from "@/lib/types"
 
 const DOMAIN = {
@@ -128,14 +128,12 @@ export async function POST(request: NextRequest) {
     }
 
     const actions = decodeActionMask(quest.actionMask)
-    for (const action of actions) {
-      const verification = await verifyAction(action, quest.targetIdentifier, userFid)
-      if (!verification.verified) {
-        return NextResponse.json(
-          { error: verification.reason },
-          { status: 400 }
-        )
-      }
+    const verification = await verifyMultipleActions(actions, quest.targetIdentifier, userFid)
+    if (!verification.verified) {
+      return NextResponse.json(
+        { error: verification.reason },
+        { status: 400 }
+      )
     }
 
     const nonce = await getUserNonce(userAddress)
@@ -160,10 +158,10 @@ export async function POST(request: NextRequest) {
       questId,
       userAddress,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Claim API error:", error)
     return NextResponse.json(
-      { error: "Something went wrong — please try again" },
+      { error: "Something went wrong: " + (error.message || "Unknown") },
       { status: 500 }
     )
   }

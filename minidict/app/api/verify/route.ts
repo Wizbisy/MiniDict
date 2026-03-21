@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getFidFromAddress, getAddressesForFid, verifyAction, getUserProfile } from "@/lib/farcaster"
+import { getFidFromAddress, getAddressesForFid, verifyAction, getUserProfile, verifyMultipleActions } from "@/lib/farcaster"
 import { getQuest, hasUserClaimed } from "@/lib/contracts"
 import { decodeActionMask } from "@/lib/types"
 
@@ -51,16 +51,10 @@ export async function GET(request: NextRequest) {
     }
 
     const actions = decodeActionMask(quest.actionMask)
-    let lastResult = { verified: true, reason: "" }
-    for (const action of actions) {
-      const result = await verifyAction(action, quest.targetIdentifier, userFid)
-      if (!result.verified) {
-        return NextResponse.json(result)
-      }
-      lastResult = result
-    }
-    return NextResponse.json(lastResult)
-  } catch {
-    return NextResponse.json({ verified: false, reason: "Verification check failed" })
+    const result = await verifyMultipleActions(actions, quest.targetIdentifier, userFid)
+    return NextResponse.json(result)
+  } catch (error: any) {
+    console.error("Verification error:", error)
+    return NextResponse.json({ verified: false, reason: "Verification check failed: " + (error.message || "Unknown") })
   }
 }
