@@ -1,14 +1,31 @@
-import { CONTRACTS, QUEST_ROUTER_ABI, ERC20_ABI, BASE_RPC, QUEST_VAULT_ABI } from "./contract-abi"
+import { CONTRACTS, QUEST_ROUTER_ABI, ERC20_ABI, QUEST_VAULT_ABI } from "./contract-abi"
 import { encodeFunctionData } from "viem"
 import type { Quest } from "./types"
 import { actionTypeFromIndex } from "./types"
 
 const RPC_PROXY_PATH = "/api/rpc"
+const INTERNAL_RPC_KEY = process.env.INTERNAL_RPC_KEY
+
+function getServerBaseUrl(): string {
+  if (process.env.INTERNAL_API_BASE_URL) return process.env.INTERNAL_API_BASE_URL
+  if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  return "http://127.0.0.1:3000"
+}
 
 function getRpcEndpoint(): string {
-  if (BASE_RPC) return BASE_RPC
   if (typeof window !== "undefined") return RPC_PROXY_PATH
-  throw new Error("BASE_RPC_URL is not configured for this runtime")
+  return `${getServerBaseUrl()}${RPC_PROXY_PATH}`
+}
+
+const isBrowserRuntime = typeof window !== "undefined"
+
+async function browserGetJson<T>(path: string): Promise<T> {
+  const response = await fetch(path, { cache: "no-store" })
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`)
+  }
+  return response.json() as Promise<T>
 }
 
 
@@ -20,7 +37,10 @@ async function ethCall(to: string, data: string): Promise<string> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const response = await fetch(rpcEndpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(isBrowserRuntime ? {} : { "x-internal-rpc-key": INTERNAL_RPC_KEY || "" }),
+      },
       body: JSON.stringify({
         jsonrpc: "2.0",
         id: 1,
@@ -47,6 +67,12 @@ async function ethCall(to: string, data: string): Promise<string> {
 
 
 export async function waitForTxReceipt(txHash: string, maxAttempts = 30): Promise<{ success: boolean; error?: string; receipt?: any }> {
+  if (isBrowserRuntime) {
+    return browserGetJson<{ success: boolean; error?: string; receipt?: any }>(
+      `/api/tx-receipt?txHash=${encodeURIComponent(txHash)}&maxAttempts=${maxAttempts}`
+    )
+  }
+
   const rpcEndpoint = getRpcEndpoint()
 
   for (let i = 0; i < maxAttempts; i++) {
@@ -55,7 +81,10 @@ export async function waitForTxReceipt(txHash: string, maxAttempts = 30): Promis
     try {
       const response = await fetch(rpcEndpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-rpc-key": INTERNAL_RPC_KEY || "",
+        },
         body: JSON.stringify({
           jsonrpc: "2.0",
           id: 1,
@@ -121,6 +150,10 @@ export async function getQuestCount(): Promise<number> {
 }
 
 export async function getQuest(questId: number): Promise<Quest | null> {
+  if (isBrowserRuntime) {
+    return browserGetJson<Quest | null>(`/api/quests/${questId}`)
+  }
+
   const data = SEL.getQuest + encodeUint256(questId)
   const result = await ethCall(CONTRACTS.QUEST_ROUTER, data)
   if (result === "0x" || result.length < 66) return null
@@ -162,6 +195,10 @@ export async function getQuest(questId: number): Promise<Quest | null> {
 }
 
 export async function getAllQuests(): Promise<Quest[]> {
+  if (isBrowserRuntime) {
+    return browserGetJson<Quest[]>("/api/quests")
+  }
+
   try {
     const count = await getQuestCount()
     if (count === 0) return []
@@ -176,6 +213,13 @@ export async function getAllQuests(): Promise<Quest[]> {
 }
 
 export async function getQuestVaultBalance(questId: number): Promise<number> {
+  if (isBrowserRuntime) {
+    const result = await browserGetJson<{ balance: number }>(
+      `/api/quests/vault-balance?questId=${questId}`
+    )
+    return result.balance
+  }
+
   try {
     const data = encodeFunctionData({
       abi: QUEST_VAULT_ABI,
@@ -199,6 +243,13 @@ export async function getRemainingClaims(questId: number): Promise<number> {
 }
 
 export async function hasUserClaimed(questId: number, user: string): Promise<boolean> {
+  if (isBrowserRuntime) {
+    const result = await browserGetJson<{ claimed: boolean }>(
+      `/api/quests/claimed?questId=${questId}&user=${encodeURIComponent(user)}`
+    )
+    return result.claimed
+  }
+
   const data = SEL.hasUserClaimed + encodeUint256(questId) + encodeAddress(user)
   const result = await ethCall(CONTRACTS.QUEST_ROUTER, data)
   return result !== "0x" && decodeBool(result.slice(2), 0)
@@ -219,6 +270,13 @@ export async function getProtocolFeeBps(): Promise<number> {
 
 
 export async function checkAllowance(owner: string): Promise<number> {
+  if (isBrowserRuntime) {
+    const result = await browserGetJson<{ allowance: number }>(
+      `/api/allowance?owner=${encodeURIComponent(owner)}`
+    )
+    return result.allowance
+  }
+
   try {
     const data = SEL.allowance + encodeAddress(owner) + encodeAddress(CONTRACTS.QUEST_VAULT)
     const result = await ethCall(CONTRACTS.USDC, data)
@@ -230,6 +288,13 @@ export async function checkAllowance(owner: string): Promise<number> {
 }
 
 export async function getUSDCBalance(address: string): Promise<number> {
+  if (isBrowserRuntime) {
+    const result = await browserGetJson<{ balance: number }>(
+      `/api/usdc-balance?address=${encodeURIComponent(address)}`
+    )
+    return result.balance
+  }
+
   try {
     const data = SEL.balanceOf + encodeAddress(address)
     const result = await ethCall(CONTRACTS.USDC, data)

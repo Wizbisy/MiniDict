@@ -4,24 +4,35 @@ const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 
 const BALANCE_OF_ABI = "0x70a08231"
 
-const BASE_RPC = process.env.BASE_RPC_URL as string
+function getRpcProxyUrl(requestUrl: string): string {
+  const origin = new URL(requestUrl).origin
+  return `${origin}/api/rpc`
+}
 
-async function getERC20Balance(tokenAddress: string, walletAddress: string): Promise<number> {
+async function rpcRequest(rpcUrl: string, payload: unknown) {
+  const response = await fetch(rpcUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-internal-rpc-key": process.env.INTERNAL_RPC_KEY || "",
+    },
+    body: JSON.stringify(payload),
+  })
+
+  return response.json()
+}
+
+async function getERC20Balance(rpcUrl: string, tokenAddress: string, walletAddress: string): Promise<number> {
   const paddedAddress = walletAddress.slice(2).toLowerCase().padStart(64, "0")
   const data = `${BALANCE_OF_ABI}${paddedAddress}`
 
-  const response = await fetch(BASE_RPC, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const result = await rpcRequest(rpcUrl, {
       jsonrpc: "2.0",
       id: 1,
       method: "eth_call",
       params: [{ to: tokenAddress, data }, "latest"],
-    }),
   })
 
-  const result = await response.json()
   if (result.result && result.result !== "0x") {
     const balanceWei = BigInt(result.result)
     return Number(balanceWei) / 1e6 
@@ -29,19 +40,14 @@ async function getERC20Balance(tokenAddress: string, walletAddress: string): Pro
   return 0
 }
 
-async function getNativeBalance(walletAddress: string): Promise<number> {
-  const response = await fetch(BASE_RPC, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+async function getNativeBalance(rpcUrl: string, walletAddress: string): Promise<number> {
+  const result = await rpcRequest(rpcUrl, {
       jsonrpc: "2.0",
       id: 1,
       method: "eth_getBalance",
       params: [walletAddress, "latest"],
-    }),
   })
 
-  const result = await response.json()
   if (result.result) {
     const balanceWei = BigInt(result.result)
     return Number(balanceWei) / 1e18
@@ -52,6 +58,7 @@ async function getNativeBalance(walletAddress: string): Promise<number> {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const address = searchParams.get("address")
+  const rpcUrl = getRpcProxyUrl(request.url)
 
   if (!address) {
     return NextResponse.json({ error: "Address required" }, { status: 400 })
@@ -59,8 +66,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const [usdc, eth] = await Promise.all([
-      getERC20Balance(USDC_BASE, address),
-      getNativeBalance(address),
+      getERC20Balance(rpcUrl, USDC_BASE, address),
+      getNativeBalance(rpcUrl, address),
     ])
 
     return NextResponse.json({ usdc, eth })

@@ -34,5 +34,3 @@ export const CONTRACTS = {
 } as const
 
 export const BASE_CHAIN_ID = 8453
-export const BASE_RPC =
-  (process.env.BASE_RPC_URL as string)

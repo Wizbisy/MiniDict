@@ -17,13 +17,24 @@ const RESOLVER_ABI = [
   },
 ] as const
 
-const baseClient = createPublicClient({
-  chain: base,
-  transport: http(process.env.BASE_RPC_URL as string),
-})
+function getRpcProxyUrl(requestUrl: string): string {
+  const origin = new URL(requestUrl).origin
+  return `${origin}/api/rpc`
+}
 
-async function fetchAvatarFromChain(basename: string): Promise<string | null> {
+async function fetchAvatarFromChain(basename: string, rpcUrl: string): Promise<string | null> {
   try {
+    const baseClient = createPublicClient({
+      chain: base,
+      transport: http(rpcUrl, {
+        fetchOptions: {
+          headers: {
+            "x-internal-rpc-key": process.env.INTERNAL_RPC_KEY || "",
+          },
+        },
+      }),
+    })
+
     const node = namehash(basename)
     const avatar = await baseClient.readContract({
       address: BASE_L2_RESOLVER,
@@ -48,6 +59,7 @@ function generateAvatarFromAddress(address: string): string {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const address = searchParams.get("address")
+  const rpcUrl = getRpcProxyUrl(request.url)
 
   if (!address) {
     return NextResponse.json({ error: "Address required" }, { status: 400 })
@@ -69,7 +81,7 @@ export async function GET(request: Request) {
           let avatar = baseProfile.avatar
 
           if (!avatar && basename) {
-            avatar = await fetchAvatarFromChain(basename)
+            avatar = await fetchAvatarFromChain(basename, rpcUrl)
           }
 
           if (!avatar) {

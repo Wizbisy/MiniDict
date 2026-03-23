@@ -1,7 +1,21 @@
 import { NextResponse } from "next/server"
 
-const ALLOWED_METHODS = new Set(["eth_call", "eth_getTransactionReceipt"])
+const ALLOWED_METHODS = new Set(["eth_call", "eth_getBalance", "eth_getTransactionReceipt"])
 const ETH_CALL_CACHE_TTL_MS = 5000
+const INTERNAL_RPC_KEY = process.env.INTERNAL_RPC_KEY
+const RPC_URLS = ((process.env.BASE_RPC_URLS || process.env.BASE_RPC_URL || "") as string)
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean)
+
+let rpcCursor = 0
+
+function getNextRpcUrl(): string {
+  if (RPC_URLS.length === 0) return ""
+  const url = RPC_URLS[rpcCursor % RPC_URLS.length]
+  rpcCursor = (rpcCursor + 1) % RPC_URLS.length
+  return url
+}
 
 type RpcPayload = {
   jsonrpc?: string
@@ -28,10 +42,25 @@ function buildEthCallCacheKey(payload: RpcPayload): string | null {
 
 export async function POST(request: Request) {
   try {
-    const rpcUrl = process.env.BASE_RPC_URL
+    if (!INTERNAL_RPC_KEY) {
+      return NextResponse.json(
+        { error: { message: "INTERNAL_RPC_KEY is not configured" } },
+        { status: 500 }
+      )
+    }
+
+    const providedKey = request.headers.get("x-internal-rpc-key")
+    if (!providedKey || providedKey !== INTERNAL_RPC_KEY) {
+      return NextResponse.json(
+        { error: { message: "Unauthorized" } },
+        { status: 401 }
+      )
+    }
+
+    const rpcUrl = getNextRpcUrl()
     if (!rpcUrl) {
       return NextResponse.json(
-        { error: { message: "BASE_RPC_URL is not configured" } },
+        { error: { message: "BASE_RPC_URL/BASE_RPC_URLS is not configured" } },
         { status: 500 }
       )
     }
