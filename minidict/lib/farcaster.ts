@@ -162,7 +162,6 @@ export async function verifyMultipleActions(
       }
       else if (action === "custom" || action === "reply") {
         if (!hash) return { verified: false, reason: "Reply action requires a valid cast hash" };
-        // Free-tier compatible reply verification: check user's recent casts and look for a reply parent hash.
         const res = await fetch(
           `${NEYNAR_BASE}/farcaster/feed/user/casts?fid=${userFid}&limit=100&include_replies=true`,
           { headers: { accept: "application/json", api_key: NEYNAR_API_KEY } }

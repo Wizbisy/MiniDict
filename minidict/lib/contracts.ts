@@ -3,12 +3,22 @@ import { encodeFunctionData } from "viem"
 import type { Quest } from "./types"
 import { actionTypeFromIndex } from "./types"
 
+const RPC_PROXY_PATH = "/api/rpc"
+
+function getRpcEndpoint(): string {
+  if (BASE_RPC) return BASE_RPC
+  if (typeof window !== "undefined") return RPC_PROXY_PATH
+  throw new Error("BASE_RPC_URL is not configured for this runtime")
+}
+
 
 async function ethCall(to: string, data: string): Promise<string> {
+  const rpcEndpoint = getRpcEndpoint()
+
   const maxAttempts = 4
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const response = await fetch(BASE_RPC, {
+    const response = await fetch(rpcEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -29,7 +39,6 @@ async function ethCall(to: string, data: string): Promise<string> {
       throw new Error(message)
     }
 
-    // Exponential backoff to smooth transient RPC throttling.
     await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** (attempt - 1)))
   }
 
@@ -38,11 +47,13 @@ async function ethCall(to: string, data: string): Promise<string> {
 
 
 export async function waitForTxReceipt(txHash: string, maxAttempts = 30): Promise<{ success: boolean; error?: string; receipt?: any }> {
+  const rpcEndpoint = getRpcEndpoint()
+
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise((r) => setTimeout(r, 2000))
 
     try {
-      const response = await fetch(BASE_RPC, {
+      const response = await fetch(rpcEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
