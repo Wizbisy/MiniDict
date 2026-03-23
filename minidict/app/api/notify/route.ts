@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
     const deadline = Number(questCreatedEvent.deadline)
 
     const redis = await getRedisClient()
-    const addedCount = await redis.sAdd("notified_quests_set", questId.toString())
-    if (addedCount === 0) {
+    const alreadyNotified = await redis.sIsMember("notified_quests_set", questId.toString())
+    if (alreadyNotified) {
       return NextResponse.json({ success: true, message: "Quest already notified. Skipping." })
     }
 
@@ -61,14 +61,17 @@ export async function POST(request: NextRequest) {
     }
 
     const groupedTokens: Record<string, string[]> = {}
+    const tokenObjectsByUrl: Record<string, string[]> = {}
 
     for (const item of rawTokens) {
       try {
         const { url, token } = JSON.parse(item)
         if (!groupedTokens[url]) {
           groupedTokens[url] = []
+          tokenObjectsByUrl[url] = []
         }
         groupedTokens[url].push(token)
+        tokenObjectsByUrl[url].push(item)
       } catch (e) {
       }
     }
@@ -77,7 +80,9 @@ export async function POST(request: NextRequest) {
     const body = `Earn $${payout} USDC by completing a new ${actionTypesLabel} quest! Ends ${endFormat}.`
     
     const targetUrl = process.env.PUBLIC_URL
-    const promises = []
+    const results: Array<{ url: string; ok: boolean; status: number; responseBody?: any }> = []
+    const invalidTokenObjects: string[] = []
+
     for (const [notificationUrl, tokens] of Object.entries(groupedTokens)) {
       const payload = {
         notificationId: `quest-creation-${questId}`,
@@ -87,20 +92,49 @@ export async function POST(request: NextRequest) {
         tokens
       }
 
-      promises.push(
-        fetch(notificationUrl, {
+      try {
+        const res = await fetch(notificationUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(payload)
-        }).then(res => res.json()).catch(err => console.error(`Failed to notify ${notificationUrl}:`, err))
-      )
+        })
+
+        let responseBody: any = null
+        try {
+          responseBody = await res.json()
+        } catch {
+          responseBody = null
+        }
+
+        results.push({ url: notificationUrl, ok: res.ok, status: res.status, responseBody })
+
+        if (!res.ok && res.status >= 400 && res.status < 500) {
+          invalidTokenObjects.push(...(tokenObjectsByUrl[notificationUrl] || []))
+        }
+      } catch (err) {
+        console.error(`Failed to notify ${notificationUrl}:`, err)
+        results.push({ url: notificationUrl, ok: false, status: 0, responseBody: "network_error" })
+      }
     }
 
-    await Promise.all(promises)
+    if (invalidTokenObjects.length > 0) {
+      await redis.sRem("farcaster_notification_tokens", invalidTokenObjects)
+    }
 
-    return NextResponse.json({ success: true, recipients: rawTokens.length })
+    const successCount = results.filter((r) => r.ok).length
+    if (successCount > 0) {
+      await redis.sAdd("notified_quests_set", questId.toString())
+    }
+
+    return NextResponse.json({
+      success: successCount > 0,
+      recipients: rawTokens.length,
+      deliveredEndpoints: successCount,
+      failedEndpoints: results.length - successCount,
+      details: results,
+    })
   } catch (error) {
     console.error("Notification broadcast error:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })

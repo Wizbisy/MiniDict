@@ -139,7 +139,7 @@ export function ProfileTab() {
 
   const handleBaseScan = () => {
     if (address) {
-      window.open(`https://sepolia.basescan.org/address/${address}`, "_blank")
+      window.open(`https://basescan.org/address/${address}`, "_blank")
     }
   }
 

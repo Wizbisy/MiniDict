@@ -28,12 +28,14 @@ export function HomeTab() {
   const fetchQuests = async (showRefresh = false) => {
     try {
       if (showRefresh) setRefreshing(true)
-      else setLoading(true)
+      else if (quests.length === 0) setLoading(true)
 
       const allQuests = await getAllQuests()
-      setQuests(allQuests)
+      if (allQuests.length > 0 || quests.length === 0) {
+        setQuests(allQuests)
+      }
 
-      if (address) {
+      if (address && allQuests.length > 0) {
         const claimed: Record<number, boolean> = {}
         await Promise.all(
           allQuests.map(async (q) => {
@@ -53,6 +55,14 @@ export function HomeTab() {
   useEffect(() => {
     fetchQuests()
   }, [address])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchQuests(false)
+    }, 15000)
+
+    return () => clearInterval(interval)
+  }, [quests.length]) 
 
   const displayQuests = useMemo(() => {
     let filtered = [...quests].filter(q => q.isActive)

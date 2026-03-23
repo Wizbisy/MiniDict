@@ -63,7 +63,7 @@ export function Header({ activeTab, setActiveTab }: HeaderProps) {
 
   const viewOnExplorer = () => {
     if (address) {
-      window.open(`https://sepolia.basescan.org/address/${address}`, "_blank")
+      window.open(`https://basescan.org/address/${address}`, "_blank")
     }
   }
 

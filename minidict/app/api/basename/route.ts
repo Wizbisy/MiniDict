@@ -19,7 +19,7 @@ const RESOLVER_ABI = [
 
 const baseClient = createPublicClient({
   chain: base,
-  transport: http("https://mainnet.base.org"),
+  transport: http(process.env.BASE_RPC_URL || ""),
 })
 
 async function fetchAvatarFromChain(basename: string): Promise<string | null> {

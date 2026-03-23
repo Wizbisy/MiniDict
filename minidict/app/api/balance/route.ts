@@ -4,7 +4,7 @@ const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 
 const BALANCE_OF_ABI = "0x70a08231"
 
-const BASE_RPC = "https://mainnet.base.org"
+const BASE_RPC = process.env.BASE_RPC_URL || ""
 
 async function getERC20Balance(tokenAddress: string, walletAddress: string): Promise<number> {
   const paddedAddress = walletAddress.slice(2).toLowerCase().padStart(64, "0")

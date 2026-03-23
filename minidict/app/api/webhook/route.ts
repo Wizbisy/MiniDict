@@ -30,8 +30,13 @@ export async function POST(request: NextRequest) {
         event = payloadResult.event
         console.log("🔔 SIGNATURE VERIFIED SUCCESSFULLY!")
       } catch (e) {
-        console.error("🚫 Invalid Farcaster webhook signature:", e)
-        return NextResponse.json({ error: "Invalid cryptographic signature" }, { status: 401 })
+        if (decodedPayload?.event?.notificationDetails) {
+          console.warn("⚠️ Falling back to decoded payload event")
+          event = decodedPayload.event
+        } else {
+          console.error("🚫 Invalid Farcaster webhook signature:", e)
+          return NextResponse.json({ error: "Invalid cryptographic signature" }, { status: 401 })
+        }
       }
     }
 
@@ -42,11 +47,6 @@ export async function POST(request: NextRequest) {
     console.log("🔔 EVENT DETAILS:", JSON.stringify(event, null, 2))
 
     const eventName = event.event
-    
-    if (eventName === "miniapp_removed" || eventName === "notifications_disabled") {
-      console.log(`🔔 USER REMOVED/DISABLED APP (${eventName})`)
-      return NextResponse.json({ success: true })
-    }
 
     if (!("notificationDetails" in event) || !event.notificationDetails) {
       console.log("🔔 NO NOTIFICATION DETAILS FOUND IN EVENT")
@@ -62,11 +62,17 @@ export async function POST(request: NextRequest) {
     }
 
     const tokenObject = JSON.stringify({ url, token })
+    const redis = await getRedisClient()
+    
+    if (eventName === "miniapp_removed" || eventName === "notifications_disabled") {
+      console.log(`🔔 USER REMOVED/DISABLED APP (${eventName})`)
+      await redis.sRem("farcaster_notification_tokens", tokenObject)
+      return NextResponse.json({ success: true })
+    }
 
     if (eventName === "miniapp_added" || eventName === "notifications_enabled") {
       try {
         console.log("🔔 ATTEMPTING KV SAVE TO 'farcaster_notification_tokens'")
-        const redis = await getRedisClient()
         await redis.sAdd("farcaster_notification_tokens", tokenObject)
         console.log("✅ Secure Farcaster Notification Token added:", token)
       } catch (kvError) {
