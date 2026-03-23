@@ -25,7 +25,7 @@ export function HomeTab() {
   const [showFilters, setShowFilters] = useState(false)
   const { address } = useMiniApp()
 
-  const fetchQuests = async (showRefresh = false) => {
+  const fetchQuests = async (showRefresh = false, refreshClaims = true) => {
     try {
       if (showRefresh) setRefreshing(true)
       else if (quests.length === 0) setLoading(true)
@@ -35,7 +35,7 @@ export function HomeTab() {
         setQuests(allQuests)
       }
 
-      if (address && allQuests.length > 0) {
+      if (refreshClaims && address && allQuests.length > 0) {
         const claimed: Record<number, boolean> = {}
         await Promise.all(
           allQuests.map(async (q) => {
@@ -53,16 +53,17 @@ export function HomeTab() {
   }
 
   useEffect(() => {
-    fetchQuests()
+    fetchQuests(false, true)
   }, [address])
 
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchQuests(false)
-    }, 15000)
+      if (document.visibilityState !== "visible") return
+      fetchQuests(false, false)
+    }, 60000)
 
     return () => clearInterval(interval)
-  }, [quests.length]) 
+  }, []) 
 
   const displayQuests = useMemo(() => {
     let filtered = [...quests].filter(q => q.isActive)
